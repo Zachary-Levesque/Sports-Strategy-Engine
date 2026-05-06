@@ -6,7 +6,7 @@ A high-performance personalized golf strategy optimization engine that recommend
 
 ## Overview
 
-The **Sports Strategy Engine** is a simulation-based decision intelligence system designed to help golfers make smarter course-management decisions.
+The **Sports Strategy Engine** is a simulation-based intelligence system designed to help golfers make smarter course-management decisions.
 
 Instead of only asking:
 
