@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.schemas import (
     HealthResponse,
@@ -15,6 +16,13 @@ from api.service import compute_recommendation, get_hole, get_player, load_hole_
 
 
 app = FastAPI(title="Sports Strategy Engine API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def _strategy_summary(result) -> StrategySummary:

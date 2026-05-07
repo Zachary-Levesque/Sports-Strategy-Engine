@@ -20,6 +20,8 @@ Sports Strategy Engine is a Python MVP for personalized golf strategy optimizati
 
 ```text
 python/
+api/
+frontend/
 data/
 results/
 tests/
@@ -54,7 +56,17 @@ pytest
 uvicorn api.main:app --reload
 ```
 
-This starts a FastAPI backend from the project root for a future React or TypeScript frontend.
+This starts the FastAPI backend from the project root at `http://localhost:8000`.
+
+## Run The Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The Vite frontend runs at `http://localhost:5173` and calls the backend at `http://localhost:8000`.
 
 ## Example POST Request
 
@@ -149,7 +161,6 @@ This version solves the first working product slice:
 
 ## Roadmap
 
-- Connect a React or TypeScript frontend to the new FastAPI recommendation endpoint
 - Port the Monte Carlo core into C++ for higher simulation throughput
-- Add a React/TypeScript UI for profile editing, hole selection, and visual strategy comparison
+- Extend the frontend with hole visualization and richer strategy comparison views
 - Extend the continuation model into multi-shot planning and richer lie/elevation handling

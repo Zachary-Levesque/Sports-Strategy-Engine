@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/api/client.ts","./src/components/alternativestable.tsx","./src/components/holeselector.tsx","./src/components/playerselector.tsx","./src/components/probabilitybreakdown.tsx","./src/components/recommendationcard.tsx"],"version":"5.9.3"}
