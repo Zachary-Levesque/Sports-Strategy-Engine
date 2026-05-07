@@ -1,0 +1,34 @@
+[
+  {
+    "player_name": "Zachary",
+    "handicap": 4,
+    "handedness": "right",
+    "preferred_shape": "fade",
+    "miss_tendency": "right",
+    "risk_tolerance": "medium",
+    "clubs": [
+      {"club": "Driver", "carry_yards": 270, "total_yards": 295, "lateral_sigma": 24, "distance_sigma": 18, "confidence": 0.74, "shape_bias": 4.0},
+      {"club": "3-Wood", "carry_yards": 242, "total_yards": 258, "lateral_sigma": 18, "distance_sigma": 14, "confidence": 0.79, "shape_bias": 2.0},
+      {"club": "4-Iron", "carry_yards": 212, "total_yards": 220, "lateral_sigma": 14, "distance_sigma": 11, "confidence": 0.83, "shape_bias": 1.0},
+      {"club": "6-Iron", "carry_yards": 185, "total_yards": 191, "lateral_sigma": 10, "distance_sigma": 8, "confidence": 0.87, "shape_bias": 0.5},
+      {"club": "8-Iron", "carry_yards": 158, "total_yards": 163, "lateral_sigma": 8, "distance_sigma": 7, "confidence": 0.9, "shape_bias": 0.5},
+      {"club": "PW", "carry_yards": 134, "total_yards": 138, "lateral_sigma": 6, "distance_sigma": 5, "confidence": 0.92, "shape_bias": 0.25}
+    ]
+  },
+  {
+    "player_name": "Maya",
+    "handicap": 14,
+    "handedness": "right",
+    "preferred_shape": "draw",
+    "miss_tendency": "left",
+    "risk_tolerance": "low",
+    "clubs": [
+      {"club": "Driver", "carry_yards": 230, "total_yards": 248, "lateral_sigma": 30, "distance_sigma": 22, "confidence": 0.61, "shape_bias": 5.0},
+      {"club": "5-Wood", "carry_yards": 200, "total_yards": 212, "lateral_sigma": 21, "distance_sigma": 15, "confidence": 0.69, "shape_bias": 2.5},
+      {"club": "5-Hybrid", "carry_yards": 182, "total_yards": 189, "lateral_sigma": 17, "distance_sigma": 12, "confidence": 0.74, "shape_bias": 1.5},
+      {"club": "7-Iron", "carry_yards": 150, "total_yards": 156, "lateral_sigma": 12, "distance_sigma": 9, "confidence": 0.8, "shape_bias": 1.0},
+      {"club": "9-Iron", "carry_yards": 122, "total_yards": 127, "lateral_sigma": 9, "distance_sigma": 7, "confidence": 0.85, "shape_bias": 0.5},
+      {"club": "SW", "carry_yards": 82, "total_yards": 86, "lateral_sigma": 7, "distance_sigma": 6, "confidence": 0.88, "shape_bias": 0.25}
+    ]
+  }
+]
