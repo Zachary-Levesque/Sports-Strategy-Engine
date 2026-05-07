@@ -24,7 +24,10 @@ class PlayerORM(Base):
         cascade="all, delete-orphan",
         order_by="ClubORM.id",
     )
-    recommendations: Mapped[list["RecommendationORM"]] = relationship(back_populates="player")
+    recommendations: Mapped[list["RecommendationORM"]] = relationship(
+        back_populates="player",
+        cascade="all, delete-orphan",
+    )
 
 
 class ClubORM(Base):
@@ -66,8 +69,14 @@ class HoleORM(Base):
     wind_speed_mph: Mapped[float] = mapped_column(Float)
     wind_direction_deg: Mapped[float] = mapped_column(Float)
 
-    recommendations: Mapped[list["RecommendationORM"]] = relationship(back_populates="hole")
-    scenarios: Mapped[list["ScenarioORM"]] = relationship(back_populates="hole")
+    recommendations: Mapped[list["RecommendationORM"]] = relationship(
+        back_populates="hole",
+        cascade="all, delete-orphan",
+    )
+    scenarios: Mapped[list["ScenarioORM"]] = relationship(
+        back_populates="hole",
+        cascade="all, delete-orphan",
+    )
 
 
 class RecommendationORM(Base):

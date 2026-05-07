@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.core.exceptions import NotFoundError
-from backend.app.models.orm import ClubORM, PlayerORM
+from backend.app.models.orm import ClubORM, PlayerORM, ScenarioORM
 from backend.app.schemas.player import PlayerCreate
 from backend.app.simulation.player_model import Club, PlayerProfile
 
@@ -64,6 +64,7 @@ def create_player(db: Session, payload: PlayerCreate) -> PlayerORM:
 
 def update_player(db: Session, player_name: str, payload: PlayerCreate) -> PlayerORM:
     player = get_player_by_name(db, player_name)
+    old_name = player.player_name
     if payload.player_name != player_name:
         existing = db.scalar(select(PlayerORM).where(PlayerORM.player_name == payload.player_name))
         if existing is not None:
@@ -75,6 +76,10 @@ def update_player(db: Session, player_name: str, payload: PlayerCreate) -> Playe
     player.preferred_shape = payload.preferred_shape
     player.miss_tendency = payload.miss_tendency
     player.risk_tolerance = payload.risk_tolerance
+    if payload.player_name != old_name:
+        scenarios = list(db.scalars(select(ScenarioORM).where(ScenarioORM.player_name == old_name)))
+        for scenario in scenarios:
+            scenario.player_name = payload.player_name
     player.clubs.clear()
     player.clubs.extend(
         [
@@ -98,6 +103,9 @@ def update_player(db: Session, player_name: str, payload: PlayerCreate) -> Playe
 
 def delete_player(db: Session, player_name: str) -> None:
     player = get_player_by_name(db, player_name)
+    scenarios = list(db.scalars(select(ScenarioORM).where(ScenarioORM.player_name == player_name)))
+    for scenario in scenarios:
+        db.delete(scenario)
     db.delete(player)
     db.commit()
 

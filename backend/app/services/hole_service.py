@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.core.exceptions import NotFoundError
-from backend.app.models.orm import HoleORM
+from backend.app.models.orm import HoleORM, ScenarioORM
 from backend.app.schemas.hole import HoleCreate, HoleDetail, PointSchema, WindSchema, ZoneSchema
 from backend.app.simulation.hole_generator import Hole, Point, Wind, Zone
 from backend.app.utils.serialization import dumps, loads
@@ -59,6 +59,7 @@ def create_hole(db: Session, payload: HoleCreate) -> HoleORM:
 
 def update_hole(db: Session, hole_id: str, payload: HoleCreate) -> HoleORM:
     hole = get_hole_by_external_id(db, hole_id)
+    old_hole_id = hole.external_hole_id
     if payload.hole_id != hole_id:
         existing = db.scalar(select(HoleORM).where(HoleORM.external_hole_id == payload.hole_id))
         if existing is not None:
@@ -80,6 +81,10 @@ def update_hole(db: Session, hole_id: str, payload: HoleCreate) -> HoleORM:
     hole.hazards_json = dumps([hazard.model_dump() for hazard in payload.hazards])
     hole.wind_speed_mph = payload.wind.speed_mph
     hole.wind_direction_deg = payload.wind.direction_deg
+    if payload.hole_id != old_hole_id:
+        scenarios = list(db.scalars(select(ScenarioORM).where(ScenarioORM.hole_id == old_hole_id)))
+        for scenario in scenarios:
+            scenario.hole_id = payload.hole_id
     db.commit()
     db.refresh(hole)
     return hole
@@ -87,6 +92,9 @@ def update_hole(db: Session, hole_id: str, payload: HoleCreate) -> HoleORM:
 
 def delete_hole(db: Session, hole_id: str) -> None:
     hole = get_hole_by_external_id(db, hole_id)
+    scenarios = list(db.scalars(select(ScenarioORM).where(ScenarioORM.hole_id == hole_id)))
+    for scenario in scenarios:
+        db.delete(scenario)
     db.delete(hole)
     db.commit()
 
