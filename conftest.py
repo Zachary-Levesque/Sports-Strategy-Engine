@@ -17,3 +17,12 @@ os.environ.setdefault("SPORTS_STRATEGY_LOG_LEVEL", "WARNING")
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+
+from backend.app.database.database import SessionLocal, init_database  # noqa: E402
+from backend.app.services.seed_service import seed_database_if_empty  # noqa: E402
+
+
+init_database()
+with SessionLocal() as db:
+    seed_database_if_empty(db)
