@@ -1,6 +1,6 @@
 # Sports Strategy Engine
 
-Sports Strategy Engine is a Python MVP for personalized golf strategy optimization. It evaluates club, aim point, shot shape, and swing intensity combinations with Monte Carlo simulation, then recommends the best option using expected strokes and risk-adjusted scoring.
+Sports Strategy Engine is a full-stack golf strategy optimizer. It combines a Python Monte Carlo simulation engine, a FastAPI backend with SQLite persistence, and a React/TypeScript frontend that consumes the live recommendation API.
 
 ## MVP Features
 
@@ -19,6 +19,7 @@ Sports Strategy Engine is a Python MVP for personalized golf strategy optimizati
 ## Project Structure
 
 ```text
+backend/
 python/
 api/
 frontend/
@@ -26,6 +27,7 @@ data/
 results/
 tests/
 docs/
+scripts/
 ```
 
 ## Install
@@ -36,24 +38,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run The Prototype
+Optional local configuration:
 
 ```bash
-python python/prototype.py
-```
-
-The prototype loads a sample player and hole from `data/`, runs the optimizer, prints the recommendation, and saves a plot into `results/plots/`.
-
-## Run Tests
-
-```bash
-pytest
+cp .env.example .env
 ```
 
 ## Run The API
 
 ```bash
-uvicorn api.main:app --reload
+uvicorn backend.app.main:app --reload
 ```
 
 This starts the FastAPI backend from the project root at `http://localhost:8000`.
@@ -67,6 +61,20 @@ npm run dev
 ```
 
 The Vite frontend runs at `http://localhost:5173` and calls the backend at `http://localhost:8000`.
+
+## Run The Prototype
+
+```bash
+python python/prototype.py
+```
+
+The prototype still works as a local CLI path for the simulation engine and saves plots into `results/plots/`.
+
+## Run Tests
+
+```bash
+pytest
+```
 
 ## Example POST Request
 
@@ -85,9 +93,10 @@ curl -X POST http://127.0.0.1:8000/recommendation \
 
 ```json
 {
+  "recommendation_id": 12,
   "player_name": "Zachary",
   "hole_id": "harbor_par4",
-  "recommendation": {
+  "best_strategy": {
     "club": "4-Iron",
     "aim_label": "front green",
     "aim_point": {"x": 0.0, "y": 407.2},
@@ -104,7 +113,26 @@ curl -X POST http://127.0.0.1:8000/recommendation \
     "ob_probability": 0.004,
     "variance": 0.599
   },
-  "explanation": "4-Iron to front green is best because it produced the lowest risk-adjusted score.",
+  "probabilities": {
+    "penalty_probability": 0.013,
+    "fairway_probability": 0.065,
+    "rough_probability": 0.029,
+    "green_probability": 0.364,
+    "bunker_probability": 0.053,
+    "water_probability": 0.009,
+    "ob_probability": 0.004,
+    "recovery_probability": 0.48
+  },
+  "expected_strokes": 3.21,
+  "risk_adjusted_score": 3.34,
+  "variance": 0.599,
+  "shot_cloud_summary": {
+    "sample_count": 350,
+    "centroid": {"x": -4.3, "y": 401.5},
+    "x_range": [-28.5, 19.2],
+    "y_range": [364.1, 429.4]
+  },
+  "explanation": "4-Iron to front green is best because it produced the lowest risk-adjusted score. Penalty exposure stayed low.",
   "top_alternatives": [
     {
       "club": "4-Iron",
@@ -146,18 +174,43 @@ Recommended strategy
 
 Exact values vary slightly because the engine ranks many simulated strategies, but the output is deterministic for the same code and seeds.
 
-## What The MVP Does
+## Developer Helpers
 
-This version solves the first working product slice:
+```bash
+make backend
+make frontend
+make test
+make build-frontend
+make reset-db
+```
 
-- load a golfer profile
-- load or generate a hole
+Shell helpers are also available:
+
+```bash
+./scripts/run_backend.sh
+./scripts/run_frontend.sh
+./scripts/reset_db.sh
+```
+
+## Database Reset
+
+```bash
+make reset-db
+```
+
+## What The App Does
+
+This version now provides:
+
+- load seeded player and hole data from SQLite
 - build realistic candidate shots
 - simulate the landing cloud for each option
 - estimate strokes remaining from the resulting lie
 - rank the strategies for the player’s risk tolerance
 - explain the recommendation
-- visualize the winning shot pattern
+- persist recommendation results and simulation metadata
+- expose the engine through a validated FastAPI service
+- serve a connected React frontend at `http://localhost:5173`
 
 ## Roadmap
 
