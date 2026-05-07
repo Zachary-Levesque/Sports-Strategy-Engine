@@ -64,6 +64,14 @@ def test_zero_wind_distribution_has_no_wind_bias():
     option = ShotOption("Driver", 0.0, 250.0, "center fairway", "straight", 1.0)
     distribution = build_shot_distribution(player, player.clubs[0], option, "tee", 0.0, 0.0)
     assert distribution.mean_x == pytest.approx(0.0)
+    assert distribution.mean_y == pytest.approx(player.clubs[0].carry_yards)
+
+
+def test_downrange_mean_depends_on_club_distance_not_aim_point():
+    player = _edge_player(carry_yards=180, total_yards=190)
+    option = ShotOption("Driver", 0.0, 400.0, "center green", "straight", 1.0)
+    distribution = build_shot_distribution(player, player.clubs[0], option, "tee", 0.0, 0.0)
+    assert distribution.mean_y == pytest.approx(180.0)
 
 
 def test_invalid_shot_shape_is_rejected():
@@ -112,6 +120,13 @@ def test_empty_scenarios_file_is_allowed(tmp_path, monkeypatch):
 
     monkeypatch.setattr("backend.app.services.scenario_service.get_settings", lambda: DummySettings())
     assert load_scenarios() == []
+
+
+def test_negative_wind_is_rejected():
+    player = _edge_player()
+    option = ShotOption("Driver", 0.0, 250.0, "center fairway", "straight", 1.0)
+    with pytest.raises(ValueError, match="wind_speed_mph cannot be negative"):
+        build_shot_distribution(player, player.clubs[0], option, "tee", -5.0, 0.0)
 
 
 def test_probability_mass_sums_to_one_for_narrow_fairway():
