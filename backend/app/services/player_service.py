@@ -62,6 +62,46 @@ def create_player(db: Session, payload: PlayerCreate) -> PlayerORM:
     return get_player_by_id(db, player.id)
 
 
+def update_player(db: Session, player_name: str, payload: PlayerCreate) -> PlayerORM:
+    player = get_player_by_name(db, player_name)
+    if payload.player_name != player_name:
+        existing = db.scalar(select(PlayerORM).where(PlayerORM.player_name == payload.player_name))
+        if existing is not None:
+            raise ValueError(f"Player '{payload.player_name}' already exists.")
+
+    player.player_name = payload.player_name
+    player.handicap = payload.handicap
+    player.handedness = payload.handedness
+    player.preferred_shape = payload.preferred_shape
+    player.miss_tendency = payload.miss_tendency
+    player.risk_tolerance = payload.risk_tolerance
+    player.clubs.clear()
+    player.clubs.extend(
+        [
+            ClubORM(
+                club=club.club,
+                carry_yards=club.carry_yards,
+                total_yards=club.total_yards,
+                lateral_sigma=club.lateral_sigma,
+                distance_sigma=club.distance_sigma,
+                confidence=club.confidence,
+                shape_bias=club.shape_bias,
+                lie_adjustment_sensitivity=club.lie_adjustment_sensitivity,
+            )
+            for club in payload.clubs
+        ]
+    )
+    db.commit()
+    db.refresh(player)
+    return get_player_by_id(db, player.id)
+
+
+def delete_player(db: Session, player_name: str) -> None:
+    player = get_player_by_name(db, player_name)
+    db.delete(player)
+    db.commit()
+
+
 def to_domain(player: PlayerORM, risk_tolerance_override: str | None = None) -> PlayerProfile:
     clubs = [
         Club(
