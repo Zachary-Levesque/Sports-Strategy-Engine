@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -87,7 +87,11 @@ class RecommendationORM(Base):
     probabilities_json: Mapped[str] = mapped_column(Text)
     shot_cloud_summary_json: Mapped[str] = mapped_column(Text)
     duration_ms: Mapped[float] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     player: Mapped[PlayerORM] = relationship(back_populates="recommendations")
     hole: Mapped[HoleORM] = relationship(back_populates="recommendations")
