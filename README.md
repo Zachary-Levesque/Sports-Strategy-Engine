@@ -48,6 +48,73 @@ The prototype loads a sample player and hole from `data/`, runs the optimizer, p
 pytest
 ```
 
+## Run The API
+
+```bash
+uvicorn api.main:app --reload
+```
+
+This starts a FastAPI backend from the project root for a future React or TypeScript frontend.
+
+## Example POST Request
+
+```bash
+curl -X POST http://127.0.0.1:8000/recommendation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "player_name": "Zachary",
+    "hole_id": "harbor_par4",
+    "iterations": 1000,
+    "risk_tolerance_override": "medium"
+  }'
+```
+
+## Example JSON Response
+
+```json
+{
+  "player_name": "Zachary",
+  "hole_id": "harbor_par4",
+  "recommendation": {
+    "club": "4-Iron",
+    "aim_label": "front green",
+    "aim_point": {"x": 0.0, "y": 407.2},
+    "shot_shape": "draw",
+    "swing_intensity": 1.0,
+    "expected_strokes": 3.21,
+    "risk_adjusted_score": 3.34,
+    "penalty_probability": 0.013,
+    "fairway_probability": 0.065,
+    "rough_probability": 0.029,
+    "green_probability": 0.364,
+    "bunker_probability": 0.053,
+    "water_probability": 0.009,
+    "ob_probability": 0.004,
+    "variance": 0.599
+  },
+  "explanation": "4-Iron to front green is best because it produced the lowest risk-adjusted score.",
+  "top_alternatives": [
+    {
+      "club": "4-Iron",
+      "aim_label": "front green",
+      "aim_point": {"x": 0.0, "y": 407.2},
+      "shot_shape": "straight",
+      "swing_intensity": 1.0,
+      "expected_strokes": 3.28,
+      "risk_adjusted_score": 3.44,
+      "penalty_probability": 0.028,
+      "fairway_probability": 0.072,
+      "rough_probability": 0.032,
+      "green_probability": 0.338,
+      "bunker_probability": 0.054,
+      "water_probability": 0.017,
+      "ob_probability": 0.011,
+      "variance": 0.729
+    }
+  ]
+}
+```
+
 ## Sample Output
 
 ```text
@@ -82,7 +149,7 @@ This version solves the first working product slice:
 
 ## Roadmap
 
-- Add a FastAPI layer so a frontend can request recommendations over HTTP
+- Connect a React or TypeScript frontend to the new FastAPI recommendation endpoint
 - Port the Monte Carlo core into C++ for higher simulation throughput
 - Add a React/TypeScript UI for profile editing, hole selection, and visual strategy comparison
 - Extend the continuation model into multi-shot planning and richer lie/elevation handling
