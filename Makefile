@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: backend frontend test build-frontend reset-db prototype
+.PHONY: backend frontend test build-frontend reset-db prototype run-tests
 
 backend:
 	uvicorn backend.app.main:app --reload
@@ -19,3 +19,6 @@ prototype:
 
 reset-db:
 	rm -f data/sports_strategy_engine.db
+
+run-tests:
+	./scripts/run_tests.sh
