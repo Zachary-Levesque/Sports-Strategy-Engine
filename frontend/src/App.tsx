@@ -207,7 +207,7 @@ function App() {
           {result ? (
             <div className="results-stack">
               <RecommendationCard result={result} />
-              <ProbabilityBreakdown recommendation={result.recommendation} />
+              <ProbabilityBreakdown probabilities={result.probabilities} />
               <AlternativesTable alternatives={result.top_alternatives} />
             </div>
           ) : (

@@ -9,7 +9,7 @@ function formatPercent(value: number): string {
 }
 
 export function RecommendationCard({ result }: RecommendationCardProps) {
-  const recommendation = result.recommendation;
+  const recommendation = result.best_strategy;
 
   return (
     <section className="card card--highlight">
@@ -40,19 +40,23 @@ export function RecommendationCard({ result }: RecommendationCardProps) {
         </div>
         <div className="stat">
           <span className="stat__label">Expected Strokes</span>
-          <strong>{recommendation.expected_strokes.toFixed(2)}</strong>
+          <strong>{result.expected_strokes.toFixed(2)}</strong>
         </div>
         <div className="stat">
           <span className="stat__label">Risk-Adjusted Score</span>
-          <strong>{recommendation.risk_adjusted_score.toFixed(2)}</strong>
+          <strong>{result.risk_adjusted_score.toFixed(2)}</strong>
         </div>
         <div className="stat">
           <span className="stat__label">Penalty Probability</span>
-          <strong>{formatPercent(recommendation.penalty_probability)}</strong>
+          <strong>{formatPercent(result.probabilities.penalty_probability)}</strong>
         </div>
         <div className="stat">
           <span className="stat__label">Variance</span>
-          <strong>{recommendation.variance.toFixed(3)}</strong>
+          <strong>{result.variance.toFixed(3)}</strong>
+        </div>
+        <div className="stat">
+          <span className="stat__label">Shot Cloud Samples</span>
+          <strong>{result.shot_cloud_summary.sample_count}</strong>
         </div>
       </div>
 

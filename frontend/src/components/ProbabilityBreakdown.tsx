@@ -1,7 +1,7 @@
-import type { StrategySummary } from "../types";
+import type { RecommendationResponse } from "../types";
 
 interface ProbabilityBreakdownProps {
-  recommendation: StrategySummary;
+  probabilities: RecommendationResponse["probabilities"];
 }
 
 const items = [
@@ -18,7 +18,7 @@ function formatPercent(value: number): string {
 }
 
 export function ProbabilityBreakdown({
-  recommendation,
+  probabilities,
 }: ProbabilityBreakdownProps) {
   return (
     <section className="card">
@@ -31,7 +31,7 @@ export function ProbabilityBreakdown({
 
       <div className="probability-list">
         {items.map((item) => {
-          const value = recommendation[item.key];
+          const value = probabilities[item.key];
           return (
             <div key={item.key} className="probability-item">
               <div className="probability-item__meta">

@@ -19,7 +19,7 @@ npm install
 From the repository root:
 
 ```bash
-uvicorn api.main:app --reload
+uvicorn backend.app.main:app --reload
 ```
 
 ## Run The Frontend

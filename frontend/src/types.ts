@@ -1,6 +1,7 @@
 export type RiskTolerance = "low" | "medium" | "high";
 
 export interface PlayerSummary {
+  id: number;
   player_name: string;
   handicap: number;
   handedness: string;
@@ -11,6 +12,7 @@ export interface PlayerSummary {
 }
 
 export interface HoleSummary {
+  id: number;
   hole_id: string;
   name: string;
   par: number;
@@ -21,6 +23,8 @@ export interface HoleSummary {
 
 export interface HealthResponse {
   status: string;
+  database: string;
+  version: string;
 }
 
 export interface AimPoint {
@@ -47,9 +51,29 @@ export interface StrategySummary {
 }
 
 export interface RecommendationResponse {
+  recommendation_id: number | null;
   player_name: string;
   hole_id: string;
-  recommendation: StrategySummary;
+  best_strategy: StrategySummary;
+  probabilities: {
+    penalty_probability: number;
+    fairway_probability: number;
+    rough_probability: number;
+    green_probability: number;
+    bunker_probability: number;
+    water_probability: number;
+    ob_probability: number;
+    recovery_probability: number;
+  };
+  expected_strokes: number;
+  risk_adjusted_score: number;
+  variance: number;
+  shot_cloud_summary: {
+    sample_count: number;
+    centroid: AimPoint;
+    x_range: number[];
+    y_range: number[];
+  };
   explanation: string;
   top_alternatives: StrategySummary[];
 }
