@@ -7,14 +7,15 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import AppError
-from backend.app.models.orm import ClubORM, HoleORM, PlayerORM
+from backend.app.models.orm import ClubORM, HoleORM, PlayerORM, ScenarioORM
 from backend.app.utils.serialization import dumps
 
 
 def seed_database_if_empty(db: Session) -> None:
     player_count = db.scalar(select(func.count()).select_from(PlayerORM)) or 0
     hole_count = db.scalar(select(func.count()).select_from(HoleORM)) or 0
-    if player_count > 0 and hole_count > 0:
+    scenario_count = db.scalar(select(func.count()).select_from(ScenarioORM)) or 0
+    if player_count > 0 and hole_count > 0 and scenario_count > 0:
         return
 
     settings = get_settings()
@@ -60,6 +61,22 @@ def seed_database_if_empty(db: Session) -> None:
                     hazards_json=dumps(item.get("hazards", [])),
                     wind_speed_mph=item["wind"]["speed_mph"],
                     wind_direction_deg=item["wind"]["direction_deg"],
+                )
+            )
+
+    if scenario_count == 0:
+        try:
+            scenario_data = json.loads(settings.scenario_seed_path.read_text())
+        except json.JSONDecodeError as exc:
+            raise AppError(f"Invalid scenario seed JSON: {exc}") from exc
+        for item in scenario_data:
+            db.add(
+                ScenarioORM(
+                    name=item["name"],
+                    player_name=item["player_name"],
+                    hole_id=item["hole_id"],
+                    iterations=item["iterations"],
+                    risk_tolerance_override=item.get("risk_tolerance_override"),
                 )
             )
 

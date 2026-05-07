@@ -67,6 +67,7 @@ class HoleORM(Base):
     wind_direction_deg: Mapped[float] = mapped_column(Float)
 
     recommendations: Mapped[list["RecommendationORM"]] = relationship(back_populates="hole")
+    scenarios: Mapped[list["ScenarioORM"]] = relationship(back_populates="hole")
 
 
 class RecommendationORM(Base):
@@ -95,3 +96,16 @@ class RecommendationORM(Base):
 
     player: Mapped[PlayerORM] = relationship(back_populates="recommendations")
     hole: Mapped[HoleORM] = relationship(back_populates="recommendations")
+
+
+class ScenarioORM(Base):
+    __tablename__ = "scenarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    player_name: Mapped[str] = mapped_column(String(120), index=True)
+    hole_id: Mapped[str] = mapped_column(String(120), ForeignKey("holes.external_hole_id"), index=True)
+    iterations: Mapped[int] = mapped_column(Integer)
+    risk_tolerance_override: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+    hole: Mapped[HoleORM] = relationship(back_populates="scenarios")

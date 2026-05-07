@@ -82,3 +82,15 @@ class SimulationResponse(BaseModel):
     shot_cloud_summary: ShotCloudSummary
     explanation: str
     ranked_strategy_count: int
+
+
+class RecommendationHistoryItem(BaseModel):
+    recommendation_id: int
+    player_name: str
+    hole_id: str
+    created_at: str
+    expected_strokes: float
+    risk_adjusted_score: float
+    penalty_probability: float
+    explanation: str
+    best_strategy: StrategySummary

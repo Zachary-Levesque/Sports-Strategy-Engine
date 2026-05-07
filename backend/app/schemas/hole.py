@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from backend.app.schemas.common import ORMBaseModel
 
@@ -31,6 +31,45 @@ class ZoneSchema(BaseModel):
     y_max: float | None = None
     penalty_strokes: float = 0.0
 
+    @model_validator(mode="after")
+    def validate_zone(self) -> "ZoneSchema":
+        if self.shape == "circle" and self.radius is None:
+            raise ValueError("circle hazards require radius")
+        if self.shape == "rectangle" and self.width is None and self.x_min is None:
+            raise ValueError("rectangle hazards require width/depth or explicit min/max bounds")
+        return self
+
+
+class HoleBase(BaseModel):
+    hole_id: str
+    name: str
+    par: int = Field(..., ge=3, le=5)
+    yardage: float = Field(..., gt=0)
+    tee: PointSchema
+    green_center: PointSchema
+    green_radius: float = Field(..., gt=0)
+    fairway_center_x: float
+    fairway_width: float = Field(..., gt=0)
+    fairway_start_y: float = Field(..., ge=0)
+    fairway_end_y: float = Field(..., ge=0)
+    rough_width: float = Field(..., ge=0)
+    hazards: list[ZoneSchema]
+    wind: WindSchema
+
+    @model_validator(mode="after")
+    def validate_hole_geometry(self) -> "HoleBase":
+        if self.fairway_end_y <= self.fairway_start_y:
+            raise ValueError("fairway_end_y must be greater than fairway_start_y")
+        return self
+
+
+class HoleCreate(HoleBase):
+    pass
+
+
+class HoleUpdate(HoleBase):
+    pass
+
 
 class HoleSummary(ORMBaseModel):
     id: int
@@ -42,19 +81,5 @@ class HoleSummary(ORMBaseModel):
     wind_direction_deg: float
 
 
-class HoleDetail(BaseModel):
+class HoleDetail(HoleBase):
     id: int
-    hole_id: str
-    name: str
-    par: int
-    yardage: float
-    tee: PointSchema
-    green_center: PointSchema
-    green_radius: float
-    fairway_center_x: float
-    fairway_width: float
-    fairway_start_y: float
-    fairway_end_y: float
-    rough_width: float
-    hazards: list[ZoneSchema]
-    wind: WindSchema

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class ScenarioSummary(BaseModel):
+    id: int | None = None
     name: str
     player_name: str
     hole_id: str

@@ -36,6 +36,6 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_database() -> None:
-    from backend.app.models.orm import ClubORM, HoleORM, PlayerORM, RecommendationORM  # noqa: F401
+    from backend.app.models.orm import ClubORM, HoleORM, PlayerORM, RecommendationORM, ScenarioORM  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
