@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
-
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+from backend.app.database.database import Base
 from backend.app.schemas.player import ClubCreate
 from backend.app.services.scenario_service import load_scenarios
 from backend.app.simulation.hole_generator import Hole, Point, Wind, generate_hole
@@ -112,14 +113,11 @@ def test_malformed_player_json_raises_clear_error(tmp_path):
 
 
 def test_empty_scenarios_file_is_allowed(tmp_path, monkeypatch):
-    path = tmp_path / "scenarios.json"
-    path.write_text("[]")
-
-    class DummySettings:
-        scenario_seed_path = path
-
-    monkeypatch.setattr("backend.app.services.scenario_service.get_settings", lambda: DummySettings())
-    assert load_scenarios() == []
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    with Session() as db:
+      assert load_scenarios(db) == []
 
 
 def test_negative_wind_is_rejected():
