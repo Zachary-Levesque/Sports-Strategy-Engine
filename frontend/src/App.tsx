@@ -24,10 +24,8 @@ import { RecommendationCard } from "./components/RecommendationCard";
 import type {
   ClubData,
   HazardData,
-  HoleDetail,
   HolePayload,
   HoleSummary,
-  PlayerDetail,
   PlayerPayload,
   PlayerSummary,
   RecommendationHistoryItem,
