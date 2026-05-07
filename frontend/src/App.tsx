@@ -576,7 +576,15 @@ function App() {
             <label className="field"><span className="field__label">Name</span><input className="field__control" value={holeForm.name} onChange={(e) => setHoleForm({ ...holeForm, name: e.target.value })} /></label>
             <label className="field"><span className="field__label">Par</span><select className="field__control" value={holeForm.par} onChange={(e) => setHoleForm({ ...holeForm, par: Number(e.target.value) as HolePayload["par"] })}>{parOptions.map((par) => <option key={par} value={par}>{par}</option>)}</select></label>
             <label className="field"><span className="field__label">Yardage</span><input className="field__control" type="number" value={holeForm.yardage} onChange={(e) => setHoleForm({ ...holeForm, yardage: Number(e.target.value) })} /></label>
+            <label className="field"><span className="field__label">Tee X</span><input className="field__control" type="number" value={holeForm.tee.x} onChange={(e) => setHoleForm({ ...holeForm, tee: { ...holeForm.tee, x: Number(e.target.value) } })} /></label>
+            <label className="field"><span className="field__label">Tee Y</span><input className="field__control" type="number" value={holeForm.tee.y} onChange={(e) => setHoleForm({ ...holeForm, tee: { ...holeForm.tee, y: Number(e.target.value) } })} /></label>
+            <label className="field"><span className="field__label">Green Center X</span><input className="field__control" type="number" value={holeForm.green_center.x} onChange={(e) => setHoleForm({ ...holeForm, green_center: { ...holeForm.green_center, x: Number(e.target.value) } })} /></label>
             <label className="field"><span className="field__label">Fairway Width</span><input className="field__control" type="number" value={holeForm.fairway_width} onChange={(e) => setHoleForm({ ...holeForm, fairway_width: Number(e.target.value) })} /></label>
+            <label className="field"><span className="field__label">Green Radius</span><input className="field__control" type="number" value={holeForm.green_radius} onChange={(e) => setHoleForm({ ...holeForm, green_radius: Number(e.target.value) })} /></label>
+            <label className="field"><span className="field__label">Fairway Center X</span><input className="field__control" type="number" value={holeForm.fairway_center_x} onChange={(e) => setHoleForm({ ...holeForm, fairway_center_x: Number(e.target.value) })} /></label>
+            <label className="field"><span className="field__label">Fairway Start Y</span><input className="field__control" type="number" value={holeForm.fairway_start_y} onChange={(e) => setHoleForm({ ...holeForm, fairway_start_y: Number(e.target.value) })} /></label>
+            <label className="field"><span className="field__label">Fairway End Y</span><input className="field__control" type="number" value={holeForm.fairway_end_y} onChange={(e) => setHoleForm({ ...holeForm, fairway_end_y: Number(e.target.value) })} /></label>
+            <label className="field"><span className="field__label">Rough Width</span><input className="field__control" type="number" value={holeForm.rough_width} onChange={(e) => setHoleForm({ ...holeForm, rough_width: Number(e.target.value) })} /></label>
             <label className="field"><span className="field__label">Wind MPH</span><input className="field__control" type="number" value={holeForm.wind.speed_mph} onChange={(e) => setHoleForm({ ...holeForm, wind: { ...holeForm.wind, speed_mph: Number(e.target.value) } })} /></label>
             <label className="field"><span className="field__label">Wind Direction</span><input className="field__control" type="number" value={holeForm.wind.direction_deg} onChange={(e) => setHoleForm({ ...holeForm, wind: { ...holeForm.wind, direction_deg: Number(e.target.value) } })} /></label>
             <label className="field"><span className="field__label">Green Center Y</span><input className="field__control" type="number" value={holeForm.green_center.y} onChange={(e) => setHoleForm({ ...holeForm, green_center: { ...holeForm.green_center, y: Number(e.target.value) } })} /></label>
@@ -592,7 +600,7 @@ function App() {
             <div className="table-wrap">
               <table className="alternatives-table">
                 <thead>
-                  <tr><th>Kind</th><th>Shape</th><th>Center X</th><th>Center Y</th><th>Radius</th><th>Width</th><th>Depth</th><th /></tr>
+                  <tr><th>Kind</th><th>Shape</th><th>Center X</th><th>Center Y</th><th>Radius</th><th>Width</th><th>Depth</th><th>Penalty</th><th /></tr>
                 </thead>
                 <tbody>
                   {holeForm.hazards.map((hazard, index) => (
@@ -604,6 +612,7 @@ function App() {
                       <td><input className="table-input" type="number" value={hazard.radius ?? ""} onChange={(e) => updateHazard(index, "radius", e.target.value)} /></td>
                       <td><input className="table-input" type="number" value={hazard.width ?? ""} onChange={(e) => updateHazard(index, "width", e.target.value)} /></td>
                       <td><input className="table-input" type="number" value={hazard.depth ?? ""} onChange={(e) => updateHazard(index, "depth", e.target.value)} /></td>
+                      <td><input className="table-input" type="number" value={hazard.penalty_strokes} onChange={(e) => updateHazard(index, "penalty_strokes", e.target.value)} /></td>
                       <td><button className="danger-link" type="button" onClick={() => setHoleForm({ ...holeForm, hazards: holeForm.hazards.filter((_, row) => row !== index) })}>Remove</button></td>
                     </tr>
                   ))}
