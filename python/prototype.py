@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import sys
+
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from decision_engine import rank_strategies
 from hole_generator import load_holes
@@ -9,7 +15,6 @@ from player_model import load_player_profiles
 from visualize import plot_hole_layout
 
 
-ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 RESULTS_DIR = ROOT / "results"
 
