@@ -62,6 +62,11 @@ def simulate_strategy(
     rng_seed: int = 7,
     sample_cap: int = 350,
 ) -> SimulationResult:
+    if iterations < 1:
+        raise ValueError("iterations must be at least 1.")
+    if sample_cap < 0:
+        raise ValueError("sample_cap cannot be negative.")
+
     club = player.club_by_name(option.club)
     distribution = build_shot_distribution(
         player=player,
@@ -79,6 +84,9 @@ def simulate_strategy(
             [distribution.covariance_xy, distribution.sigma_y**2],
         ]
     )
+    eigenvalues = np.linalg.eigvalsh(covariance)
+    if np.any(eigenvalues < -1e-9):
+        raise ValueError(f"Shot covariance matrix is not positive semidefinite: {covariance.tolist()}")
     mean = np.array([distribution.mean_x, distribution.mean_y])
     draws = rng.multivariate_normal(mean, covariance, size=iterations)
 
@@ -101,7 +109,7 @@ def simulate_strategy(
         strokes.append(total_strokes)
         surfaces.append(surface)
 
-        if index < sample_cap:
+        if index < min(sample_cap, iterations):
             samples.append(
                 ShotSample(
                     x=float(x),
@@ -115,6 +123,8 @@ def simulate_strategy(
     expected_strokes = float(np.mean(strokes))
     variance = safe_variance(strokes)
     penalty_probability = penalties / iterations
+    if not np.isfinite(expected_strokes) or not np.isfinite(variance):
+        raise ValueError("Simulation produced non-finite expected_strokes or variance.")
     metrics = StrategyMetrics(
         expected_strokes=expected_strokes,
         variance=variance,

@@ -83,7 +83,10 @@ def hole_from_dict(item: dict[str, Any]) -> Hole:
 
 
 def load_holes(path: str | Path) -> dict[str, Hole]:
-    raw_holes = json.loads(Path(path).read_text())
+    try:
+        raw_holes = json.loads(Path(path).read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid hole JSON in {path}: {exc}") from exc
     holes = [hole_from_dict(item) for item in raw_holes]
     return {hole.hole_id: hole for hole in holes}
 
@@ -124,6 +127,8 @@ def classify_surface(hole: Hole, x: float, y: float) -> str:
 
 
 def generate_hole(par: int, seed: int | None = None) -> Hole:
+    if par not in {3, 4, 5}:
+        raise ValueError("generate_hole currently supports only par 3, 4, or 5 holes.")
     rng = random.Random(seed)
     yardage_ranges = {3: (145, 225), 4: (345, 465), 5: (495, 585)}
     yardage = float(rng.randint(*yardage_ranges[par]))

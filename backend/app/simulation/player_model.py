@@ -9,6 +9,10 @@ import numpy as np
 
 
 RISK_MAP = {"low": 1.35, "medium": 1.0, "high": 0.7}
+VALID_SHOT_SHAPES = {"straight", "draw", "fade"}
+VALID_RISK_TOLERANCES = set(RISK_MAP)
+VALID_HANDEDNESS = {"right", "left"}
+VALID_MISS_TENDENCIES = {"center", "none", "left", "right", "pull", "push"}
 
 
 @dataclass(frozen=True)
@@ -22,6 +26,18 @@ class Club:
     shape_bias: float = 0.0
     lie_adjustment_sensitivity: float = 0.08
 
+    def __post_init__(self) -> None:
+        if self.carry_yards <= 0 or self.total_yards <= 0:
+            raise ValueError(f"Club '{self.club}' must have positive carry and total yards.")
+        if self.total_yards < self.carry_yards:
+            raise ValueError(f"Club '{self.club}' total_yards cannot be less than carry_yards.")
+        if self.lateral_sigma < 0 or self.distance_sigma < 0:
+            raise ValueError(f"Club '{self.club}' dispersion values cannot be negative.")
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError(f"Club '{self.club}' confidence must be within [0, 1].")
+        if self.lie_adjustment_sensitivity < 0:
+            raise ValueError(f"Club '{self.club}' lie_adjustment_sensitivity cannot be negative.")
+
 
 @dataclass(frozen=True)
 class PlayerProfile:
@@ -32,6 +48,18 @@ class PlayerProfile:
     miss_tendency: str
     risk_tolerance: str
     clubs: list[Club]
+
+    def __post_init__(self) -> None:
+        if self.handedness.lower() not in VALID_HANDEDNESS:
+            raise ValueError(f"Unsupported handedness: {self.handedness}")
+        if self.preferred_shape not in VALID_SHOT_SHAPES:
+            raise ValueError(f"Unsupported preferred_shape: {self.preferred_shape}")
+        if self.miss_tendency.lower() not in VALID_MISS_TENDENCIES:
+            raise ValueError(f"Unsupported miss_tendency: {self.miss_tendency}")
+        if self.risk_tolerance not in VALID_RISK_TOLERANCES:
+            raise ValueError(f"Unsupported risk_tolerance: {self.risk_tolerance}")
+        if not self.clubs:
+            raise ValueError("PlayerProfile must include at least one club.")
 
     def club_by_name(self, club_name: str) -> Club:
         for club in self.clubs:
@@ -51,6 +79,12 @@ class ShotOption:
     aim_label: str
     shot_shape: str
     swing_intensity: float
+
+    def __post_init__(self) -> None:
+        if self.shot_shape not in VALID_SHOT_SHAPES:
+            raise ValueError(f"Unsupported shot_shape: {self.shot_shape}")
+        if not 0.0 < self.swing_intensity <= 1.0:
+            raise ValueError("swing_intensity must be within (0, 1].")
 
 
 @dataclass(frozen=True)
@@ -101,6 +135,9 @@ def build_shot_distribution(
     wind_speed_mph: float,
     wind_direction_deg: float,
 ) -> ShotDistribution:
+    if wind_speed_mph < 0:
+        raise ValueError("wind_speed_mph cannot be negative.")
+
     lie_distance_factor, lie_dispersion_factor = _lie_multiplier(lie)
     intensity = option.swing_intensity
     confidence_factor = 1.0 + (1.0 - club.confidence) * 0.45
@@ -127,7 +164,8 @@ def build_shot_distribution(
     sigma_x *= preference_bonus
     sigma_y *= 0.92 if option.shot_shape == player.preferred_shape else 1.0
 
-    covariance = shape_direction * sigma_x * sigma_y * 0.08
+    correlation = float(np.clip(shape_direction * 0.08, -0.95, 0.95))
+    covariance = correlation * sigma_x * sigma_y
 
     return ShotDistribution(
         mean_x=option.aim_x + shape_bias + miss_bias + crosswind_adjustment,
@@ -140,7 +178,10 @@ def build_shot_distribution(
 
 
 def load_player_profiles(path: str | Path) -> dict[str, PlayerProfile]:
-    raw_profiles = json.loads(Path(path).read_text())
+    try:
+        raw_profiles = json.loads(Path(path).read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid player profile JSON in {path}: {exc}") from exc
     profiles: dict[str, PlayerProfile] = {}
     for item in raw_profiles:
         clubs = [Club(**club_data) for club_data in item["clubs"]]

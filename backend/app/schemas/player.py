@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
 
 from backend.app.schemas.common import ORMBaseModel
 
@@ -15,6 +17,12 @@ class ClubBase(BaseModel):
     shape_bias: float = 0.0
     lie_adjustment_sensitivity: float = Field(0.08, ge=0)
 
+    @model_validator(mode="after")
+    def validate_distance_order(self) -> "ClubBase":
+        if self.total_yards < self.carry_yards:
+            raise ValueError("total_yards cannot be less than carry_yards.")
+        return self
+
 
 class ClubCreate(ClubBase):
     pass
@@ -27,10 +35,10 @@ class ClubRead(ORMBaseModel, ClubBase):
 class PlayerBase(BaseModel):
     player_name: str
     handicap: float
-    handedness: str = "right"
-    preferred_shape: str
-    miss_tendency: str
-    risk_tolerance: str
+    handedness: Literal["right", "left"] = "right"
+    preferred_shape: Literal["straight", "draw", "fade"]
+    miss_tendency: Literal["center", "none", "left", "right", "pull", "push"]
+    risk_tolerance: Literal["low", "medium", "high"]
 
 
 class PlayerCreate(PlayerBase):

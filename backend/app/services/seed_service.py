@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
+from backend.app.core.exceptions import AppError
 from backend.app.models.orm import ClubORM, HoleORM, PlayerORM
 from backend.app.utils.serialization import dumps
 
@@ -18,7 +19,10 @@ def seed_database_if_empty(db: Session) -> None:
 
     settings = get_settings()
     if player_count == 0:
-        player_data = json.loads(settings.player_seed_path.read_text())
+        try:
+            player_data = json.loads(settings.player_seed_path.read_text())
+        except json.JSONDecodeError as exc:
+            raise AppError(f"Invalid player seed JSON: {exc}") from exc
         for item in player_data:
             player = PlayerORM(
                 player_name=item["player_name"],
@@ -32,7 +36,10 @@ def seed_database_if_empty(db: Session) -> None:
             db.add(player)
 
     if hole_count == 0:
-        hole_data = json.loads(settings.hole_seed_path.read_text())
+        try:
+            hole_data = json.loads(settings.hole_seed_path.read_text())
+        except json.JSONDecodeError as exc:
+            raise AppError(f"Invalid hole seed JSON: {exc}") from exc
         for item in hole_data:
             db.add(
                 HoleORM(
