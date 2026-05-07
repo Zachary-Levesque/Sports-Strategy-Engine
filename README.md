@@ -163,13 +163,13 @@ Hole: Harbor Line (Par 4, 418 yards)
 Wind: 10 mph at 70 degrees
 
 Recommended strategy
-  Club: 3-Wood
-  Aim point: center fairway at (0.0, 259.2)
-  Shot shape: straight
+  Club: 4-Iron
+  Aim point: left fairway at (-7.5, 212.0)
+  Shot shape: draw
   Swing intensity: 100%
-  Expected strokes: 4.14
-  Risk-adjusted score: 4.42
-  Penalty probability: 3.0%
+  Expected strokes: 5.21
+  Risk-adjusted score: 5.24
+  Penalty probability: 1.1%
 ```
 
 Exact values vary slightly because the engine ranks many simulated strategies, but the output is deterministic for the same code and seeds.
