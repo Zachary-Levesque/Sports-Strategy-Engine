@@ -1,0 +1,62 @@
+[
+  {
+    "hole_id": "harbor_par4",
+    "name": "Harbor Line",
+    "par": 4,
+    "yardage": 418,
+    "tee": {"x": 0.0, "y": 0.0},
+    "green_center": {"x": 0.0, "y": 418.0},
+    "green_radius": 18.0,
+    "fairway_center_x": 0.0,
+    "fairway_width": 34.0,
+    "fairway_start_y": 45.0,
+    "fairway_end_y": 390.0,
+    "rough_width": 20.0,
+    "hazards": [
+      {"kind": "water", "shape": "rectangle", "center_x": 25.0, "center_y": 258.0, "width": 26.0, "depth": 56.0, "penalty_strokes": 1.0},
+      {"kind": "bunker", "shape": "circle", "center_x": -11.0, "center_y": 394.0, "radius": 11.0, "penalty_strokes": 0.0},
+      {"kind": "ob", "shape": "corridor", "center_x": 52.0, "center_y": 209.0, "width": 20.0, "start_y": 0.0, "end_y": 440.0, "penalty_strokes": 1.0}
+    ],
+    "wind": {"speed_mph": 10.0, "direction_deg": 70.0}
+  },
+  {
+    "hole_id": "ridge_par3",
+    "name": "Ridge Carry",
+    "par": 3,
+    "yardage": 176,
+    "tee": {"x": 0.0, "y": 0.0},
+    "green_center": {"x": 0.0, "y": 176.0},
+    "green_radius": 17.0,
+    "fairway_center_x": 0.0,
+    "fairway_width": 28.0,
+    "fairway_start_y": 134.0,
+    "fairway_end_y": 166.0,
+    "rough_width": 18.0,
+    "hazards": [
+      {"kind": "water", "shape": "rectangle", "center_x": 0.0, "center_y": 156.0, "width": 34.0, "depth": 22.0, "penalty_strokes": 1.0},
+      {"kind": "bunker", "shape": "circle", "center_x": 14.0, "center_y": 177.0, "radius": 10.0, "penalty_strokes": 0.0}
+    ],
+    "wind": {"speed_mph": 8.0, "direction_deg": 180.0}
+  },
+  {
+    "hole_id": "split_fairway_par5",
+    "name": "Split Fairway",
+    "par": 5,
+    "yardage": 535,
+    "tee": {"x": 0.0, "y": 0.0},
+    "green_center": {"x": 0.0, "y": 535.0},
+    "green_radius": 18.0,
+    "fairway_center_x": 0.0,
+    "fairway_width": 38.0,
+    "fairway_start_y": 50.0,
+    "fairway_end_y": 505.0,
+    "rough_width": 24.0,
+    "hazards": [
+      {"kind": "water", "shape": "rectangle", "center_x": -19.0, "center_y": 278.0, "width": 24.0, "depth": 44.0, "penalty_strokes": 1.0},
+      {"kind": "water", "shape": "rectangle", "center_x": 18.0, "center_y": 348.0, "width": 20.0, "depth": 36.0, "penalty_strokes": 1.0},
+      {"kind": "bunker", "shape": "circle", "center_x": 11.0, "center_y": 520.0, "radius": 10.0, "penalty_strokes": 0.0},
+      {"kind": "ob", "shape": "corridor", "center_x": -54.0, "center_y": 265.0, "width": 18.0, "start_y": 0.0, "end_y": 560.0, "penalty_strokes": 1.0}
+    ],
+    "wind": {"speed_mph": 6.0, "direction_deg": 315.0}
+  }
+]
