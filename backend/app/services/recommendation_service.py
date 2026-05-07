@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from statistics import mean
 import time
 from typing import NamedTuple
@@ -11,6 +12,7 @@ from backend.app.models.orm import RecommendationORM
 from backend.app.schemas.recommendation import (
     AimPointSchema,
     ProbabilitySummary,
+    RecommendationHistoryItem,
     RecommendationRequest,
     RecommendationResponse,
     ShotCloudSummary,
@@ -191,3 +193,26 @@ def simulate(db: Session, payload: RecommendationRequest) -> SimulationResponse:
         explanation=response.explanation,
         ranked_strategy_count=computation.ranked_strategy_count,
     )
+
+
+def list_recommendation_history(db: Session, limit: int = 50) -> list[RecommendationHistoryItem]:
+    rows = (
+        db.query(RecommendationORM)
+        .order_by(RecommendationORM.created_at.desc(), RecommendationORM.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        RecommendationHistoryItem(
+            recommendation_id=row.id,
+            player_name=row.player.player_name,
+            hole_id=row.hole.external_hole_id,
+            created_at=row.created_at.isoformat(),
+            expected_strokes=row.expected_strokes,
+            risk_adjusted_score=row.risk_adjusted_score,
+            penalty_probability=row.penalty_probability,
+            explanation=row.explanation,
+            best_strategy=StrategySummary(**json.loads(row.best_strategy_json)),
+        )
+        for row in rows
+    ]
