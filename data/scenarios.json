@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Zachary on Harbor Line",
+    "player_name": "Zachary",
+    "hole_id": "harbor_par4",
+    "iterations": 2500
+  },
+  {
+    "name": "Maya conservative on Harbor Line",
+    "player_name": "Maya",
+    "hole_id": "harbor_par4",
+    "iterations": 2500,
+    "risk_tolerance_override": "low"
+  }
+]
