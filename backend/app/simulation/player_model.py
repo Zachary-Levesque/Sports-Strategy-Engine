@@ -163,11 +163,11 @@ def build_shot_distribution(
 
     return ShotDistribution(
         mean_x=option.aim_x + shape_bias + miss_bias + crosswind_adjustment,
-        mean_y=option.aim_y + (base_carry - club.carry_yards) + carry_adjustment,
+        mean_y=max(0.0, base_carry + carry_adjustment),
         sigma_x=sigma_x,
         sigma_y=sigma_y,
         covariance_xy=covariance,
-        expected_total_yards=base_total + carry_adjustment,
+        expected_total_yards=max(0.0, base_total + carry_adjustment),
     )
 
 

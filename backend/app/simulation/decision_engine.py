@@ -19,31 +19,27 @@ def generate_shot_options(player: PlayerProfile, hole: Hole) -> list[ShotOption]
     options: list[ShotOption] = []
     intensities = [0.7, 0.8, 0.9, 1.0]
     shapes = ["straight", "draw", "fade"]
-    fairway_center = (hole.fairway_center_x, min(hole.yardage * 0.62, hole.fairway_end_y - 6))
-    fairway_left = (hole.fairway_center_x - hole.fairway_width * 0.22, fairway_center[1])
-    fairway_right = (hole.fairway_center_x + hole.fairway_width * 0.22, fairway_center[1])
-    green_center = (hole.green_center.x, hole.green_center.y)
-    front_green = (hole.green_center.x, hole.green_center.y - hole.green_radius * 0.6)
-
-    targets = [
-        ("center fairway", *fairway_center),
-        ("left fairway", *fairway_left),
-        ("right fairway", *fairway_right),
-        ("center green", *green_center),
-        ("front green", *front_green),
-    ]
-
     for club in player.clubs:
-        for aim_label, aim_x, aim_y in targets:
-            if aim_label.endswith("green") and club.carry_yards < hole.yardage * 0.45:
-                continue
-            for shape in shapes:
-                for intensity in intensities:
-                    projected_carry = club.carry_yards * (0.55 + 0.45 * intensity)
-                    if aim_label == "center green" and projected_carry < hole.yardage - 50:
-                        continue
-                    if aim_label.startswith("center fairway") and projected_carry > hole.yardage + 20:
-                        continue
+        for intensity in intensities:
+            projected_carry = club.carry_yards * (0.55 + 0.45 * intensity)
+            fairway_y = min(
+                max(projected_carry, hole.fairway_start_y + 5.0),
+                hole.fairway_end_y - 5.0,
+            )
+            targets = [
+                ("center fairway", hole.fairway_center_x, fairway_y),
+                ("left fairway", hole.fairway_center_x - hole.fairway_width * 0.22, fairway_y),
+                ("right fairway", hole.fairway_center_x + hole.fairway_width * 0.22, fairway_y),
+            ]
+
+            if abs(projected_carry - hole.green_center.y) <= max(35.0, hole.green_radius * 2.0):
+                targets.append(("center green", hole.green_center.x, hole.green_center.y))
+            front_green_y = hole.green_center.y - hole.green_radius * 0.6
+            if abs(projected_carry - front_green_y) <= max(30.0, hole.green_radius * 2.0):
+                targets.append(("front green", hole.green_center.x, front_green_y))
+
+            for aim_label, aim_x, aim_y in targets:
+                for shape in shapes:
                     options.append(
                         ShotOption(
                             club=club.club,
