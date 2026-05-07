@@ -112,12 +112,12 @@ def test_malformed_player_json_raises_clear_error(tmp_path):
         load_player_profiles(path)
 
 
-def test_empty_scenarios_file_is_allowed(tmp_path, monkeypatch):
+def test_empty_scenarios_file_is_allowed():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     with Session() as db:
-      assert load_scenarios(db) == []
+        assert load_scenarios(db) == []
 
 
 def test_negative_wind_is_rejected():
