@@ -9,7 +9,9 @@ client = TestClient(app)
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["database"] == "ok"
 
 
 def test_catalog_endpoints_return_seed_data():
@@ -40,11 +42,11 @@ def test_recommendation_endpoint_returns_expected_shape():
     payload = response.json()
     assert payload["player_name"] == "Zachary"
     assert payload["hole_id"] == "harbor_par4"
-    assert "recommendation" in payload
+    assert "best_strategy" in payload
     assert len(payload["top_alternatives"]) == 3
-    assert payload["recommendation"]["club"]
-    assert "expected_strokes" in payload["recommendation"]
-    assert "ob_probability" in payload["recommendation"]
+    assert payload["best_strategy"]["club"]
+    assert "expected_strokes" in payload
+    assert "ob_probability" in payload["probabilities"]
 
 
 def test_recommendation_unknown_player_returns_404():
