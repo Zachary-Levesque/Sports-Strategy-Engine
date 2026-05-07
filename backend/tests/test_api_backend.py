@@ -68,6 +68,8 @@ def test_create_player_persists_to_database():
     with SessionLocal() as db:
         record = db.query(PlayerORM).filter(PlayerORM.player_name == unique_name).first()
         assert record is not None
+        db.delete(record)
+        db.commit()
 
 
 def test_simulate_endpoint_returns_saved_result_metadata():
