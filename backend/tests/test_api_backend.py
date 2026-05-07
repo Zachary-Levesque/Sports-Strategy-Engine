@@ -85,7 +85,7 @@ def test_simulate_endpoint_returns_saved_result_metadata():
     assert response.status_code == 200
     payload = response.json()
     assert payload["simulation_id"] is not None
-    assert payload["ranked_strategy_count"] == 4
+    assert payload["ranked_strategy_count"] > len(payload["top_alternatives"])
 
     with SessionLocal() as db:
         record = db.query(RecommendationORM).filter(RecommendationORM.id == payload["simulation_id"]).first()

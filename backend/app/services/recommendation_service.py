@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from statistics import mean
 import time
+from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,11 @@ from backend.app.services.player_service import get_player_by_name, to_domain as
 from backend.app.simulation.decision_engine import rank_strategies
 from backend.app.simulation.monte_carlo import SimulationResult
 from backend.app.utils.serialization import dumps
+
+
+class RecommendationComputation(NamedTuple):
+    response: RecommendationResponse
+    ranked_strategy_count: int
 
 
 def _strategy_summary(result: SimulationResult) -> StrategySummary:
@@ -82,13 +87,14 @@ def _persist_result(
     response: RecommendationResponse,
     player_id: int,
     hole_id: int,
+    risk_tolerance_used: str,
     duration_ms: float,
 ) -> int:
     record = RecommendationORM(
         player_id=player_id,
         hole_id=hole_id,
         iterations=payload.iterations,
-        risk_tolerance_used=payload.risk_tolerance_override or "",
+        risk_tolerance_used=risk_tolerance_used,
         explanation=response.explanation,
         expected_strokes=response.expected_strokes,
         risk_adjusted_score=response.risk_adjusted_score,
@@ -130,14 +136,15 @@ def build_recommendation_response(
     )
 
 
-def compute_recommendation(db: Session, payload: RecommendationRequest) -> RecommendationResponse:
+def _compute(db: Session, payload: RecommendationRequest) -> RecommendationComputation:
     player = get_player_by_name(db, payload.player_name)
     hole = get_hole_by_external_id(db, payload.hole_id)
+    resolved_player = player_to_domain(player, payload.risk_tolerance_override)
 
     started = time.perf_counter()
     try:
         result = rank_strategies(
-            player=player_to_domain(player, payload.risk_tolerance_override),
+            player=resolved_player,
             hole=hole_to_domain(hole),
             iterations=payload.iterations,
             risk_tolerance_override=payload.risk_tolerance_override,
@@ -155,15 +162,21 @@ def compute_recommendation(db: Session, payload: RecommendationRequest) -> Recom
                 response=response,
                 player_id=player.id,
                 hole_id=hole.id,
+                risk_tolerance_used=resolved_player.risk_tolerance,
                 duration_ms=duration_ms,
             )
         }
     )
-    return response
+    return RecommendationComputation(response=response, ranked_strategy_count=len(result.ranked_strategies))
+
+
+def compute_recommendation(db: Session, payload: RecommendationRequest) -> RecommendationResponse:
+    return _compute(db, payload).response
 
 
 def simulate(db: Session, payload: RecommendationRequest) -> SimulationResponse:
-    response = compute_recommendation(db, payload)
+    computation = _compute(db, payload)
+    response = computation.response
     return SimulationResponse(
         simulation_id=response.recommendation_id,
         player_name=response.player_name,
@@ -176,5 +189,5 @@ def simulate(db: Session, payload: RecommendationRequest) -> SimulationResponse:
         variance=response.variance,
         shot_cloud_summary=response.shot_cloud_summary,
         explanation=response.explanation,
-        ranked_strategy_count=len(response.top_alternatives) + 1,
+        ranked_strategy_count=computation.ranked_strategy_count,
     )

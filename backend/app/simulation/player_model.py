@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
-from typing import Any
-
 import numpy as np
 
 
@@ -66,10 +64,6 @@ class PlayerProfile:
             if club.club == club_name:
                 return club
         raise KeyError(f"Unknown club: {club_name}")
-
-    def risk_multiplier(self) -> float:
-        return RISK_MAP.get(self.risk_tolerance, 1.0)
-
 
 @dataclass(frozen=True)
 class ShotOption:
@@ -196,15 +190,3 @@ def load_player_profiles(path: str | Path) -> dict[str, PlayerProfile]:
         )
         profiles[profile.player_name] = profile
     return profiles
-
-
-def player_to_dict(player: PlayerProfile) -> dict[str, Any]:
-    return {
-        "player_name": player.player_name,
-        "handicap": player.handicap,
-        "handedness": player.handedness,
-        "preferred_shape": player.preferred_shape,
-        "miss_tendency": player.miss_tendency,
-        "risk_tolerance": player.risk_tolerance,
-        "clubs": [club.__dict__ for club in player.clubs],
-    }

@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 import time
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -44,19 +44,24 @@ def create_app() -> FastAPI:
     async def request_timing_middleware(request: Request, call_next):
         logger = get_logger()
         started = time.perf_counter()
-        response = await call_next(request)
-        duration_ms = (time.perf_counter() - started) * 1000
-        logger.info(
-            log_event(
-                "request_complete",
-                method=request.method,
-                path=request.url.path,
-                status_code=response.status_code,
-                duration_ms=round(duration_ms, 2),
+        response: Response | None = None
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            duration_ms = (time.perf_counter() - started) * 1000
+            status_code = response.status_code if response is not None else 500
+            logger.info(
+                log_event(
+                    "request_complete",
+                    method=request.method,
+                    path=request.url.path,
+                    status_code=status_code,
+                    duration_ms=round(duration_ms, 2),
+                )
             )
-        )
-        response.headers["X-Process-Time-Ms"] = f"{duration_ms:.2f}"
-        return response
+            if response is not None:
+                response.headers["X-Process-Time-Ms"] = f"{duration_ms:.2f}"
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_: Request, exc: NotFoundError):
