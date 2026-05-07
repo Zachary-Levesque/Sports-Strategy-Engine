@@ -1,34 +1,30 @@
 # Sports Strategy Engine
 
-Sports Strategy Engine is a full-stack golf strategy optimizer. It combines a Python Monte Carlo simulation engine, a FastAPI backend with SQLite persistence, and a React/TypeScript frontend that consumes the live recommendation API.
+Sports Strategy Engine is a local full-stack golf strategy optimizer. It combines a Python Monte Carlo simulation engine, a FastAPI backend with SQLite persistence, and a React/TypeScript frontend that consumes the live API.
 
-## MVP Features
+## Overview
 
-- Personalized player profiles with club-by-club carry, total distance, dispersion, confidence, shot-shape preference, miss tendency, and risk tolerance
-- Simplified hole model with tee, fairway, green, rough, bunker, water, and out-of-bounds zones
-- Candidate strategy generation across:
-  - clubs
-  - aim points
-  - shot shapes: `straight`, `draw`, `fade`
-  - swing intensities: `70%`, `80%`, `90%`, `100%`
-- 2D Gaussian shot simulation with wind, shape bias, miss bias, and intensity-based dispersion changes
-- Outcome classification into fairway, rough, green, bunker, water, OB, or recovery
-- Risk metrics including expected strokes, penalty probability, surface probabilities, and variance
-- Plot output showing the hole, shot cloud, aim point, and recommended line
+The application now supports:
 
-## Project Structure
+- seeded player, hole, and scenario data
+- player CRUD with club distance and dispersion editing
+- hole CRUD with hazard and wind editing
+- recommendation generation through Monte Carlo simulation
+- persisted recommendation history
+- a React dashboard for running and reviewing strategy workflows
 
-```text
-backend/
-python/
-api/
-frontend/
-data/
-results/
-tests/
-docs/
-scripts/
-```
+## Architecture
+
+- `backend/app/simulation`
+  The shared golf simulation engine and decision logic.
+- `backend/app`
+  FastAPI app, schemas, services, SQLite models, startup seeding, and logging.
+- `frontend/src`
+  React + TypeScript UI for strategy, player editing, hole editing, and history.
+- `python/`
+  Compatibility CLI entrypoint for the original prototype.
+
+See [docs/architecture.md](/Users/zacharylevesque/Documents/GitHub/Sports-Strategy-Engine/docs/architecture.md), [docs/api.md](/Users/zacharylevesque/Documents/GitHub/Sports-Strategy-Engine/docs/api.md), and [docs/user_flows.md](/Users/zacharylevesque/Documents/GitHub/Sports-Strategy-Engine/docs/user_flows.md).
 
 ## Install
 
@@ -36,47 +32,88 @@ scripts/
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
+cd frontend
+npm install
+cd ..
 ```
 
-Optional local configuration:
+## Backend Setup
+
+Run the backend from the project root:
 
 ```bash
-cp .env.example .env
+./scripts/run_backend.sh
 ```
 
-## Run The API
+Equivalent command:
 
 ```bash
 uvicorn backend.app.main:app --reload
 ```
 
-This starts the FastAPI backend from the project root at `http://localhost:8000`.
+Backend URL: `http://localhost:8000`
 
-## Run The Frontend
+## Frontend Setup
+
+Run the frontend from the project root:
+
+```bash
+./scripts/run_frontend.sh
+```
+
+Equivalent commands:
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-The Vite frontend runs at `http://localhost:5173` and calls the backend at `http://localhost:8000`.
+Frontend URL: `http://localhost:5173`
 
-## Run The Prototype
+## Run Full Stack Locally
+
+1. Start the backend: `./scripts/run_backend.sh`
+2. Start the frontend: `./scripts/run_frontend.sh`
+3. Open `http://localhost:5173`
+4. Use the `Strategy`, `Players`, `Holes`, and `History` tabs
+
+## Database Setup
+
+- SQLite file: `data/sports_strategy_engine.db`
+- Startup behavior: the backend creates tables automatically and seeds players, holes, and scenarios if the database is empty
+
+Reset the local database:
 
 ```bash
-python python/prototype.py
+./scripts/reset_db.sh
 ```
 
-The prototype still works as a local CLI path for the simulation engine and saves plots into `results/plots/`.
-
-## Run Tests
+Or:
 
 ```bash
-pytest
+make reset-db
 ```
 
-## Example POST Request
+## API Endpoint Summary
+
+- `GET /health`
+- `GET /players`
+- `GET /players/{player_name}`
+- `POST /players`
+- `PUT /players/{player_name}`
+- `DELETE /players/{player_name}`
+- `GET /holes`
+- `GET /holes/{hole_id}`
+- `POST /holes`
+- `PUT /holes/{hole_id}`
+- `DELETE /holes/{hole_id}`
+- `GET /scenarios`
+- `POST /recommendation`
+- `POST /simulate`
+- `GET /recommendations/history`
+
+## Example Recommendation Request
 
 ```bash
 curl -X POST http://127.0.0.1:8000/recommendation \
@@ -84,136 +121,97 @@ curl -X POST http://127.0.0.1:8000/recommendation \
   -d '{
     "player_name": "Zachary",
     "hole_id": "harbor_par4",
-    "iterations": 1000,
+    "iterations": 2000,
     "risk_tolerance_override": "medium"
   }'
 ```
 
-## Example JSON Response
+## Example Recommendation Response
 
 ```json
 {
-  "recommendation_id": 12,
+  "recommendation_id": 21,
   "player_name": "Zachary",
   "hole_id": "harbor_par4",
   "best_strategy": {
     "club": "4-Iron",
-    "aim_label": "front green",
-    "aim_point": {"x": 0.0, "y": 407.2},
+    "aim_label": "left fairway",
+    "aim_point": {"x": -7.5, "y": 212.0},
     "shot_shape": "draw",
     "swing_intensity": 1.0,
-    "expected_strokes": 3.21,
-    "risk_adjusted_score": 3.34,
-    "penalty_probability": 0.013,
-    "fairway_probability": 0.065,
-    "rough_probability": 0.029,
-    "green_probability": 0.364,
-    "bunker_probability": 0.053,
-    "water_probability": 0.009,
-    "ob_probability": 0.004,
-    "variance": 0.599
+    "expected_strokes": 5.21,
+    "risk_adjusted_score": 5.24,
+    "penalty_probability": 0.011,
+    "fairway_probability": 0.634,
+    "rough_probability": 0.311,
+    "green_probability": 0.0,
+    "bunker_probability": 0.002,
+    "water_probability": 0.008,
+    "ob_probability": 0.003,
+    "variance": 0.072
   },
   "probabilities": {
-    "penalty_probability": 0.013,
-    "fairway_probability": 0.065,
-    "rough_probability": 0.029,
-    "green_probability": 0.364,
-    "bunker_probability": 0.053,
-    "water_probability": 0.009,
-    "ob_probability": 0.004,
-    "recovery_probability": 0.48
+    "penalty_probability": 0.011,
+    "fairway_probability": 0.634,
+    "rough_probability": 0.311,
+    "green_probability": 0.0,
+    "bunker_probability": 0.002,
+    "water_probability": 0.008,
+    "ob_probability": 0.003,
+    "recovery_probability": 0.042
   },
-  "expected_strokes": 3.21,
-  "risk_adjusted_score": 3.34,
-  "variance": 0.599,
+  "expected_strokes": 5.21,
+  "risk_adjusted_score": 5.24,
+  "variance": 0.072,
   "shot_cloud_summary": {
     "sample_count": 350,
-    "centroid": {"x": -4.3, "y": 401.5},
-    "x_range": [-28.5, 19.2],
-    "y_range": [364.1, 429.4]
+    "centroid": {"x": -2.6, "y": 213.4},
+    "x_range": [-40.3, 29.1],
+    "y_range": [184.7, 242.5]
   },
-  "explanation": "4-Iron to front green is best because it produced the lowest risk-adjusted score. Penalty exposure stayed low.",
-  "top_alternatives": [
-    {
-      "club": "4-Iron",
-      "aim_label": "front green",
-      "aim_point": {"x": 0.0, "y": 407.2},
-      "shot_shape": "straight",
-      "swing_intensity": 1.0,
-      "expected_strokes": 3.28,
-      "risk_adjusted_score": 3.44,
-      "penalty_probability": 0.028,
-      "fairway_probability": 0.072,
-      "rough_probability": 0.032,
-      "green_probability": 0.338,
-      "bunker_probability": 0.054,
-      "water_probability": 0.017,
-      "ob_probability": 0.011,
-      "variance": 0.729
-    }
-  ]
+  "explanation": "4-Iron to left fairway is best because it produced the lowest risk-adjusted score."
 }
 ```
 
-## Sample Output
+## Testing
 
-```text
-Player: Zachary
-Hole: Harbor Line (Par 4, 418 yards)
-Wind: 10 mph at 70 degrees
-
-Recommended strategy
-  Club: 4-Iron
-  Aim point: left fairway at (-7.5, 212.0)
-  Shot shape: draw
-  Swing intensity: 100%
-  Expected strokes: 5.21
-  Risk-adjusted score: 5.24
-  Penalty probability: 1.1%
-```
-
-Exact values vary slightly because the engine ranks many simulated strategies, but the output is deterministic for the same code and seeds.
-
-## Developer Helpers
+Backend tests:
 
 ```bash
-make backend
-make frontend
-make test
-make build-frontend
-make reset-db
+pytest
 ```
 
-Shell helpers are also available:
+Frontend build validation:
 
 ```bash
-./scripts/run_backend.sh
-./scripts/run_frontend.sh
-./scripts/reset_db.sh
+cd frontend
+npm run build
 ```
 
-## Database Reset
+Combined helper:
 
 ```bash
-make reset-db
+./scripts/run_tests.sh
 ```
 
-## What The App Does
+The CLI prototype still works:
 
-This version now provides:
+```bash
+python python/prototype.py
+```
 
-- load seeded player and hole data from SQLite
-- build realistic candidate shots
-- simulate the landing cloud for each option
-- estimate strokes remaining from the resulting lie
-- rank the strategies for the player’s risk tolerance
-- explain the recommendation
-- persist recommendation results and simulation metadata
-- expose the engine through a validated FastAPI service
-- serve a connected React frontend at `http://localhost:5173`
+## Troubleshooting
 
-## Roadmap
+- If the frontend shows `Backend unreachable`, confirm the backend is running at `http://localhost:8000`.
+- If port `8000` is already in use, stop the existing process and restart the backend.
+- If the UI data looks stale, refresh history or reset the database with `./scripts/reset_db.sh`.
+- If you change backend schemas or frontend types, rerun `pytest` and `npm run build`.
 
-- Port the Monte Carlo core into C++ for higher simulation throughput
-- Extend the frontend with hole visualization and richer strategy comparison views
-- Extend the continuation model into multi-shot planning and richer lie/elevation handling
+## Final Step After This
+
+The remaining final step is deployment packaging and hosting:
+
+- production environment configuration
+- build/release workflow
+- production process management
+- hosting for backend and frontend
