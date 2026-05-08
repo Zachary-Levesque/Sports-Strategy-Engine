@@ -2,6 +2,8 @@ export type RiskTolerance = "low" | "medium" | "high";
 export type ShotShape = "straight" | "draw" | "fade";
 export type Handedness = "right" | "left";
 export type MissTendency = "center" | "none" | "left" | "right" | "pull" | "push";
+export type LieType = "tee" | "fairway" | "rough" | "bunker" | "recovery";
+export type ShotMode = "tee" | "custom";
 
 export interface ClubData {
   id?: number;
@@ -108,7 +110,7 @@ export interface StrategySummary {
   club: string;
   aim_label: string;
   aim_point: AimPoint;
-  shot_shape: string;
+  shot_shape: ShotShape;
   swing_intensity: number;
   expected_strokes: number;
   risk_adjusted_score: number;
@@ -122,10 +124,21 @@ export interface StrategySummary {
   variance: number;
 }
 
+export interface ShotSample {
+  x: number;
+  y: number;
+  surface: string;
+  total_strokes: number;
+}
+
 export interface RecommendationResponse {
   recommendation_id: number | null;
   player_name: string;
   hole_id: string;
+  shot_mode: ShotMode;
+  start_position: AimPoint;
+  target_position: AimPoint;
+  lie: LieType;
   best_strategy: StrategySummary;
   probabilities: {
     penalty_probability: number;
@@ -146,6 +159,7 @@ export interface RecommendationResponse {
     x_range: number[];
     y_range: number[];
   };
+  shot_samples: ShotSample[];
   explanation: string;
   top_alternatives: StrategySummary[];
 }
@@ -155,6 +169,10 @@ export interface RecommendationRequest {
   hole_id: string;
   iterations: number;
   risk_tolerance_override?: RiskTolerance;
+  shot_mode?: ShotMode;
+  ball_position?: AimPoint;
+  lie?: LieType;
+  target_position?: AimPoint;
 }
 
 export interface ScenarioSummary {
