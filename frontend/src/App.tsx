@@ -12,7 +12,6 @@ import {
   getPlayers,
   getRecommendation,
   getRecommendationHistory,
-  getScenarios,
   updateHole,
   updatePlayer,
 } from "./api/client";
@@ -39,7 +38,6 @@ import type {
   RecommendationHistoryItem,
   RecommendationResponse,
   RiskTolerance,
-  ScenarioSummary,
   ShotMode,
   ShotShape,
   WindData,
@@ -159,12 +157,10 @@ function App() {
 
   const [players, setPlayers] = useState<PlayerSummary[]>([]);
   const [holes, setHoles] = useState<HoleSummary[]>([]);
-  const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [history, setHistory] = useState<RecommendationHistoryItem[]>([]);
 
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [selectedHole, setSelectedHole] = useState("");
-  const [selectedScenario, setSelectedScenario] = useState("");
   const [iterations, setIterations] = useState(2000);
   const [riskTolerance, setRiskTolerance] = useState<RiskTolerance>("medium");
   const [shotMode, setShotMode] = useState<ShotMode>("tee");
@@ -183,6 +179,7 @@ function App() {
   const [editingHoleId, setEditingHoleId] = useState<string | null>(null);
   const [holeEditorTool, setHoleEditorTool] = useState<HoleEditorTool>("select");
   const [selectedHazardIndex, setSelectedHazardIndex] = useState<number | null>(null);
+  const [holeEditorFitSignal, setHoleEditorFitSignal] = useState(0);
 
   useEffect(() => {
     void loadInitialData();
@@ -239,17 +236,15 @@ function App() {
     try {
       setLoading(true);
       setError("");
-      const [health, playerData, holeData, scenarioData, historyData] = await Promise.all([
+      const [health, playerData, holeData, historyData] = await Promise.all([
         getHealth(),
         getPlayers(),
         getHoles(),
-        getScenarios(),
         getRecommendationHistory(),
       ]);
       setHealthStatus(health.status === "ok" ? "Backend online" : "Backend unavailable");
       setPlayers(playerData);
       setHoles(holeData);
-      setScenarios(scenarioData);
       setHistory(historyData);
 
       if (playerData.length > 0) {
@@ -258,9 +253,6 @@ function App() {
       }
       if (holeData.length > 0) {
         setSelectedHole((current) => current || holeData[0].hole_id);
-      }
-      if (scenarioData.length > 0) {
-        setSelectedScenario((current) => current || scenarioData[0].name);
       }
     } catch (loadError) {
       setHealthStatus("Backend unreachable");
@@ -312,21 +304,6 @@ function App() {
     setSelectedHazardIndex(null);
     setHoleEditorTool("select");
     setNotice("");
-  }
-
-  function applyScenario(name: string) {
-    setSelectedScenario(name);
-    const scenario = scenarios.find((item) => item.name === name);
-    if (!scenario) {
-      return;
-    }
-    setSelectedPlayer(scenario.player_name);
-    setSelectedHole(scenario.hole_id);
-    setIterations(scenario.iterations);
-    setShotMode("tee");
-    if (scenario.risk_tolerance_override) {
-      setRiskTolerance(scenario.risk_tolerance_override);
-    }
   }
 
   async function runRecommendation() {
@@ -515,26 +492,9 @@ function App() {
           </div>
 
           {loading ? (
-            <div className="state-message">Loading player, hole, scenario, and history data...</div>
+            <div className="state-message">Loading player, hole, and history data...</div>
           ) : (
             <>
-              {scenarios.length > 0 ? (
-                <label className="field">
-                  <span className="field__label">Scenario</span>
-                  <select
-                    className="field__control"
-                    value={selectedScenario}
-                    onChange={(event) => applyScenario(event.target.value)}
-                  >
-                    {scenarios.map((scenario) => (
-                      <option key={scenario.name} value={scenario.name}>
-                        {scenario.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-
               <PlayerSelector players={players} value={selectedPlayer} onChange={setSelectedPlayer} />
               <HoleSelector holes={holes} value={selectedHole} onChange={setSelectedHole} />
 
@@ -1068,6 +1028,7 @@ function App() {
               selectedHazardIndex={selectedHazardIndex}
               onToolChange={setHoleEditorTool}
               onDeleteSelected={deleteSelectedHazard}
+              onFitToScreen={() => setHoleEditorFitSignal((current) => current + 1)}
             />
             <div className="helper-callout">
               <strong>How to edit</strong>
@@ -1243,6 +1204,7 @@ function App() {
             hole={holeForm}
             tool={holeEditorTool}
             selectedHazardIndex={selectedHazardIndex}
+            fitViewSignal={holeEditorFitSignal}
             onChange={setHoleForm}
             onSelectHazard={setSelectedHazardIndex}
           />
