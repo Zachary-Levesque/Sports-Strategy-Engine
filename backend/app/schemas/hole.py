@@ -48,11 +48,13 @@ class HoleBase(BaseModel):
     tee: PointSchema
     green_center: PointSchema
     green_radius: float = Field(..., gt=0)
+    pin_position: PointSchema | None = None
     fairway_center_x: float
     fairway_width: float = Field(..., gt=0)
     fairway_start_y: float = Field(..., ge=0)
     fairway_end_y: float = Field(..., ge=0)
     rough_width: float = Field(..., ge=0)
+    fairway_path: list[PointSchema] | None = None
     hazards: list[ZoneSchema]
     wind: WindSchema
 
