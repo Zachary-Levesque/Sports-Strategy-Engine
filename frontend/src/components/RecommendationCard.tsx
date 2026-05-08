@@ -23,12 +23,26 @@ export function RecommendationCard({ result }: RecommendationCardProps) {
 
       <div className="result-grid">
         <div className="stat">
+          <span className="stat__label">Shot Mode</span>
+          <strong>{result.shot_mode === "tee" ? "Tee shot" : "Custom shot"}</strong>
+        </div>
+        <div className="stat">
+          <span className="stat__label">Lie</span>
+          <strong>{result.lie}</strong>
+        </div>
+        <div className="stat">
           <span className="stat__label">Aim Point</span>
           <strong>{recommendation.aim_label}</strong>
           <span>
             ({recommendation.aim_point.x.toFixed(1)},{" "}
             {recommendation.aim_point.y.toFixed(1)})
           </span>
+        </div>
+        <div className="stat">
+          <span className="stat__label">Target Position</span>
+          <strong>
+            ({result.target_position.x.toFixed(1)}, {result.target_position.y.toFixed(1)})
+          </strong>
         </div>
         <div className="stat">
           <span className="stat__label">Shot Shape</span>
