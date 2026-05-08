@@ -3,6 +3,7 @@ import type { MouseEvent, PointerEvent, WheelEvent } from "react";
 
 import type { AimPoint, HolePayload, ShotSample } from "../types";
 import { fairwayPathForRender, fairwayPathSvg, getProjection } from "./holeMapGeometry";
+import { hazardPath, flagPath, organicBlobPath, teeBoxPath } from "./holeVisuals";
 import { MapViewportControls } from "./MapViewportControls";
 
 interface HoleMapProps {
@@ -18,14 +19,14 @@ interface HoleMapProps {
 }
 
 const SURFACE_COLORS: Record<string, string> = {
-  bunker: "#d9bd7f",
-  water: "#4e9cc7",
-  ob: "#d95c54",
-  recovery: "#857056",
+  bunker: "#dfc286",
+  water: "#58a8cf",
+  ob: "#dc655a",
+  recovery: "#8a7657",
 };
 
 function surfaceColor(kind: string): string {
-  return SURFACE_COLORS[kind] ?? "#86ab6d";
+  return SURFACE_COLORS[kind] ?? "#88b267";
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -57,9 +58,32 @@ export function HoleMap({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panEnabled, setPanEnabled] = useState(false);
-  const panDragRef = useRef<{ pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number; moved: boolean } | null>(null);
+  const panDragRef = useRef<{
+    pointerId: number;
+    svgX: number;
+    svgY: number;
+    startPanX: number;
+    startPanY: number;
+    moved: boolean;
+  } | null>(null);
 
   const pinPosition = hole.pin_position ?? hole.green_center;
+  const flag = flagPath(pinPosition, projection);
+  const greenPath = organicBlobPath(
+    hole.green_center,
+    hole.green_radius * 1.12,
+    hole.green_radius * 0.92,
+    projection,
+    11,
+  );
+  const greenInnerPath = organicBlobPath(
+    hole.green_center,
+    hole.green_radius * 0.72,
+    hole.green_radius * 0.58,
+    projection,
+    19,
+  );
+  const teePath = teeBoxPath(hole.tee, projection);
 
   function getSvgPoint(event: MouseEvent<SVGSVGElement> | PointerEvent<SVGSVGElement> | WheelEvent<SVGSVGElement>) {
     const svg = svgRef.current;
@@ -141,18 +165,13 @@ export function HoleMap({
   function handlePointerUp(event: PointerEvent<SVGSVGElement>) {
     if (panDragRef.current?.pointerId === event.pointerId) {
       event.currentTarget.releasePointerCapture(event.pointerId);
-      const moved = panDragRef.current.moved;
       panDragRef.current = null;
-      if (moved) {
-        event.preventDefault();
-      }
     }
   }
 
   function handleWheel(event: WheelEvent<SVGSVGElement>) {
     event.preventDefault();
-    const anchor = getSvgPoint(event);
-    zoomAround(event.deltaY < 0 ? 1.12 : 1 / 1.12, anchor);
+    zoomAround(event.deltaY < 0 ? 1.12 : 1 / 1.12, getSvgPoint(event));
   }
 
   return (
@@ -191,63 +210,68 @@ export function HoleMap({
           onPointerLeave={handlePointerUp}
           onWheel={handleWheel}
         >
-          <rect x="0" y="0" width={projection.width} height={projection.height} rx="20" className="hole-map__base" />
-
+          <defs>
+            <linearGradient id="courseBase" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#d7c19a" />
+              <stop offset="100%" stopColor="#cbb088" />
+            </linearGradient>
+            <linearGradient id="sandFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#ecd6a8" />
+              <stop offset="100%" stopColor="#d7b77b" />
+            </linearGradient>
+            <linearGradient id="waterFill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#74c1e4" />
+              <stop offset="100%" stopColor="#3b8ebf" />
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width={projection.width} height={projection.height} rx="22" className="hole-map__base" />
           <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
             <path d={fairwayLine} className="hole-map__rough-path" strokeWidth={hole.fairway_width + hole.rough_width * 2} />
+            <path d={fairwayLine} className="hole-map__fairway-shadow" strokeWidth={hole.fairway_width + 5} />
             <path d={fairwayLine} className="hole-map__fairway-path" strokeWidth={hole.fairway_width} />
-            <circle
-              cx={projection.toSvgX(hole.green_center.x)}
-              cy={projection.toSvgY(hole.green_center.y)}
-              r={hole.green_radius}
-              className="hole-map__green"
-            />
-            <circle
-              cx={projection.toSvgX(hole.tee.x)}
-              cy={projection.toSvgY(hole.tee.y)}
-              r="5"
-              className="hole-map__tee"
-            />
+            <path d={fairwayLine} className="hole-map__fairway-centerline" strokeWidth={1.6} />
+
+            <path d={greenPath} className="hole-map__green" />
+            <path d={greenInnerPath} className="hole-map__green-inner" />
+            <path d={teePath} className="hole-map__tee-box" />
 
             {hole.hazards.map((hazard, index) => {
-              if (hazard.shape === "circle" && hazard.radius) {
+              const organicPath = hazardPath(hazard, projection, index + 3);
+              if (organicPath) {
                 return (
-                  <circle
+                  <path
                     key={`${hazard.kind}-${index}`}
-                    cx={projection.toSvgX(hazard.center_x)}
-                    cy={projection.toSvgY(hazard.center_y)}
-                    r={hazard.radius}
-                    fill={surfaceColor(hazard.kind)}
-                    opacity="0.88"
-                  />
-                );
-              }
-              if (hazard.shape === "rectangle" && hazard.width && hazard.depth) {
-                return (
-                  <rect
-                    key={`${hazard.kind}-${index}`}
-                    x={projection.toSvgX(hazard.center_x - hazard.width / 2)}
-                    y={projection.toSvgY(hazard.center_y + hazard.depth / 2)}
-                    width={hazard.width}
-                    height={hazard.depth}
-                    fill={surfaceColor(hazard.kind)}
-                    opacity="0.88"
-                    rx="8"
+                    d={organicPath}
+                    className={`hole-map__hazard-fill hole-map__hazard-fill--${hazard.kind}`}
+                    fill={hazard.kind === "water" ? "url(#waterFill)" : hazard.kind === "bunker" ? "url(#sandFill)" : surfaceColor(hazard.kind)}
                   />
                 );
               }
               if (hazard.shape === "corridor" && hazard.width && hazard.start_y != null && hazard.end_y != null) {
                 return (
-                  <rect
-                    key={`${hazard.kind}-${index}`}
-                    x={projection.toSvgX(hazard.center_x - hazard.width / 2)}
-                    y={projection.toSvgY(hazard.end_y)}
-                    width={hazard.width}
-                    height={hazard.end_y - hazard.start_y}
-                    fill={surfaceColor(hazard.kind)}
-                    opacity="0.65"
-                    rx="8"
-                  />
+                  <g key={`${hazard.kind}-${index}`}>
+                    <rect
+                      x={projection.toSvgX(hazard.center_x - hazard.width / 2)}
+                      y={projection.toSvgY(hazard.end_y)}
+                      width={hazard.width}
+                      height={hazard.end_y - hazard.start_y}
+                      className="hole-map__ob-corridor"
+                    />
+                    <line
+                      x1={projection.toSvgX(hazard.center_x - hazard.width / 2)}
+                      y1={projection.toSvgY(hazard.start_y)}
+                      x2={projection.toSvgX(hazard.center_x - hazard.width / 2)}
+                      y2={projection.toSvgY(hazard.end_y)}
+                      className="hole-map__ob-line"
+                    />
+                    <line
+                      x1={projection.toSvgX(hazard.center_x + hazard.width / 2)}
+                      y1={projection.toSvgY(hazard.start_y)}
+                      x2={projection.toSvgX(hazard.center_x + hazard.width / 2)}
+                      y2={projection.toSvgY(hazard.end_y)}
+                      className="hole-map__ob-line"
+                    />
+                  </g>
                 );
               }
               return null;
@@ -288,12 +312,18 @@ export function HoleMap({
                 <circle
                   cx={projection.toSvgX(startPosition.x)}
                   cy={projection.toSvgY(startPosition.y)}
-                  r="5.4"
+                  r="5.8"
                   className="hole-map__start-point"
                 />
+                <circle
+                  cx={projection.toSvgX(startPosition.x)}
+                  cy={projection.toSvgY(startPosition.y)}
+                  r="8.6"
+                  className="hole-map__start-ring"
+                />
                 <text
-                  x={projection.toSvgX(startPosition.x) + 8}
-                  y={projection.toSvgY(startPosition.y) - 8}
+                  x={projection.toSvgX(startPosition.x) + 10}
+                  y={projection.toSvgY(startPosition.y) - 9}
                   className="hole-map__label"
                 >
                   Ball
@@ -319,8 +349,8 @@ export function HoleMap({
                   className="hole-map__target-point"
                 />
                 <text
-                  x={projection.toSvgX(targetPosition.x) + 8}
-                  y={projection.toSvgY(targetPosition.y) - 8}
+                  x={projection.toSvgX(targetPosition.x) + 10}
+                  y={projection.toSvgY(targetPosition.y) - 9}
                   className="hole-map__label"
                 >
                   Target
@@ -328,18 +358,24 @@ export function HoleMap({
               </>
             ) : null}
 
-            <text x={projection.toSvgX(hole.tee.x) + 8} y={projection.toSvgY(hole.tee.y) - 8} className="hole-map__label">
+            <path d={flag.pole} className="hole-map__pin-pole" />
+            <path d={flag.flag} className="hole-map__pin-flag" />
+            <circle
+              cx={projection.toSvgX(pinPosition.x)}
+              cy={projection.toSvgY(pinPosition.y)}
+              r="3.5"
+              className="hole-map__pin-point"
+            />
+
+            <text x={projection.toSvgX(hole.tee.x) + 10} y={projection.toSvgY(hole.tee.y) - 10} className="hole-map__label">
               Tee
             </text>
             <text
-              x={projection.toSvgX(hole.green_center.x) + hole.green_radius + 6}
+              x={projection.toSvgX(hole.green_center.x) + hole.green_radius + 8}
               y={projection.toSvgY(hole.green_center.y)}
               className="hole-map__label"
             >
               Green
-            </text>
-            <text x={projection.toSvgX(pinPosition.x) + 8} y={projection.toSvgY(pinPosition.y) + 14} className="hole-map__label">
-              Pin
             </text>
           </g>
         </svg>
