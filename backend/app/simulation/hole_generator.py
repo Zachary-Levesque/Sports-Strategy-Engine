@@ -46,11 +46,13 @@ class Hole:
     tee: Point
     green_center: Point
     green_radius: float
+    pin_position: Point | None = None
     fairway_center_x: float
     fairway_width: float
     fairway_start_y: float
     fairway_end_y: float
     rough_width: float
+    fairway_path: list[Point] | None = None
     hazards: list[Zone]
     wind: Wind
 
@@ -72,11 +74,13 @@ def hole_from_dict(item: dict[str, Any]) -> Hole:
         tee=_point_from_dict(item["tee"]),
         green_center=_point_from_dict(item["green_center"]),
         green_radius=item["green_radius"],
+        pin_position=_point_from_dict(item["pin_position"]) if item.get("pin_position") else None,
         fairway_center_x=item["fairway_center_x"],
         fairway_width=item["fairway_width"],
         fairway_start_y=item["fairway_start_y"],
         fairway_end_y=item["fairway_end_y"],
         rough_width=item["rough_width"],
+        fairway_path=[_point_from_dict(point) for point in item.get("fairway_path", [])] or None,
         hazards=[_zone_from_dict(zone) for zone in item.get("hazards", [])],
         wind=Wind(**item["wind"]),
     )
@@ -89,6 +93,27 @@ def load_holes(path: str | Path) -> dict[str, Hole]:
         raise ValueError(f"Invalid hole JSON in {path}: {exc}") from exc
     holes = [hole_from_dict(item) for item in raw_holes]
     return {hole.hole_id: hole for hole in holes}
+
+
+def fairway_center_x_at_y(hole: Hole, y: float) -> float:
+    if not hole.fairway_path or len(hole.fairway_path) < 2:
+        return hole.fairway_center_x
+
+    path = sorted(hole.fairway_path, key=lambda point: point.y)
+    if y <= path[0].y:
+        return path[0].x
+    if y >= path[-1].y:
+        return path[-1].x
+
+    for start, end in zip(path, path[1:]):
+        if start.y <= y <= end.y:
+            span = end.y - start.y
+            if span == 0:
+                return end.x
+            t = (y - start.y) / span
+            return start.x + (end.x - start.x) * t
+
+    return hole.fairway_center_x
 
 
 def zone_contains(zone: Zone, x: float, y: float) -> bool:
@@ -118,23 +143,31 @@ def classify_surface(hole: Hole, x: float, y: float) -> str:
     in_fairway_band = hole.fairway_start_y <= y <= hole.fairway_end_y
     fairway_half_width = hole.fairway_width / 2
     rough_half_width = fairway_half_width + hole.rough_width
+    fairway_center_x = fairway_center_x_at_y(hole, y)
 
-    if in_fairway_band and abs(x - hole.fairway_center_x) <= fairway_half_width:
+    if in_fairway_band and abs(x - fairway_center_x) <= fairway_half_width:
         return "fairway"
-    if in_fairway_band and abs(x - hole.fairway_center_x) <= rough_half_width:
+    if in_fairway_band and abs(x - fairway_center_x) <= rough_half_width:
         return "rough"
     return "recovery"
 
 
-def generate_hole(par: int, seed: int | None = None) -> Hole:
+def generate_hole(par: int, seed: int | None = None, yardage: float | None = None) -> Hole:
     if par not in {3, 4, 5}:
         raise ValueError("generate_hole currently supports only par 3, 4, or 5 holes.")
     rng = random.Random(seed)
     yardage_ranges = {3: (145, 225), 4: (345, 465), 5: (495, 585)}
-    yardage = float(rng.randint(*yardage_ranges[par]))
+    yardage = float(yardage if yardage is not None else rng.randint(*yardage_ranges[par]))
     fairway_width = float(rng.randint(28, 42))
     rough_width = float(rng.randint(16, 26))
     fairway_end = yardage - rng.randint(18, 32)
+    fairway_start = 40.0 if par > 3 else max(20.0, yardage - 32.0)
+    fairway_mid_y = (fairway_start + fairway_end) / 2
+    fairway_path = [
+        Point(0.0, fairway_start),
+        Point(float(rng.randint(-18, 18)) if par > 3 else float(rng.randint(-10, 10)), fairway_mid_y),
+        Point(float(rng.randint(-12, 12)), fairway_end),
+    ]
 
     hazards: list[Zone] = []
     if par >= 4:
@@ -180,11 +213,13 @@ def generate_hole(par: int, seed: int | None = None) -> Hole:
         tee=Point(0.0, 0.0),
         green_center=Point(0.0, yardage),
         green_radius=16.0 if par == 3 else 18.0,
+        pin_position=Point(0.0, yardage),
         fairway_center_x=0.0,
         fairway_width=fairway_width,
-        fairway_start_y=40.0 if par > 3 else yardage - 32.0,
+        fairway_start_y=fairway_start,
         fairway_end_y=fairway_end,
         rough_width=rough_width,
+        fairway_path=fairway_path,
         hazards=hazards,
         wind=Wind(speed_mph=float(rng.randint(4, 16)), direction_deg=float(rng.randint(0, 359))),
     )
@@ -199,11 +234,13 @@ def hole_to_dict(hole: Hole) -> dict[str, Any]:
         "tee": hole.tee.__dict__,
         "green_center": hole.green_center.__dict__,
         "green_radius": hole.green_radius,
+        "pin_position": hole.pin_position.__dict__ if hole.pin_position else None,
         "fairway_center_x": hole.fairway_center_x,
         "fairway_width": hole.fairway_width,
         "fairway_start_y": hole.fairway_start_y,
         "fairway_end_y": hole.fairway_end_y,
         "rough_width": hole.rough_width,
+        "fairway_path": [point.__dict__ for point in hole.fairway_path] if hole.fairway_path else None,
         "hazards": [hazard.__dict__ for hazard in hole.hazards],
         "wind": hole.wind.__dict__,
     }
