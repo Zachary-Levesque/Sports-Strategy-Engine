@@ -6,6 +6,15 @@ export type LieType = "tee" | "fairway" | "rough" | "bunker" | "recovery";
 export type ShotMode = "tee" | "custom";
 export type HazardKind = "bunker" | "water" | "ob" | "recovery";
 export type HazardShape = "circle" | "rectangle" | "corridor";
+export type HoleLayoutShape =
+  | "straight"
+  | "slight_dogleg_right"
+  | "slight_dogleg_left"
+  | "hard_dogleg_right"
+  | "hard_dogleg_left"
+  | "s_curve"
+  | "short_par3"
+  | "risk_reward_par5";
 
 export interface ClubData {
   id?: number;
