@@ -30,6 +30,7 @@ import type {
   ClubData,
   HazardData,
   HoleDetail,
+  HoleLayoutShape,
   HolePayload,
   HoleSummary,
   LieType,
@@ -136,6 +137,7 @@ function emptyHole(): HolePayload {
     name: "Custom Par 4",
     par: 4,
     yardage: 410,
+    shape: "straight",
   });
 }
 
@@ -180,6 +182,7 @@ function App() {
   const [holeEditorTool, setHoleEditorTool] = useState<HoleEditorTool>("select");
   const [selectedHazardIndex, setSelectedHazardIndex] = useState<number | null>(null);
   const [holeEditorFitSignal, setHoleEditorFitSignal] = useState(0);
+  const [holeGenerationShape, setHoleGenerationShape] = useState<HoleLayoutShape>("straight");
 
   useEffect(() => {
     void loadInitialData();
@@ -286,6 +289,7 @@ function App() {
     setEditingHoleId(holeId);
     setSelectedHazardIndex(null);
     setHoleEditorTool("select");
+    setHoleGenerationShape(detail.par === 3 ? "short_par3" : "straight");
     setNotice("");
     setView("holes");
   }
@@ -303,6 +307,7 @@ function App() {
     setEditingHoleId(null);
     setSelectedHazardIndex(null);
     setHoleEditorTool("select");
+    setHoleGenerationShape("straight");
     setNotice("");
   }
 
@@ -1009,10 +1014,13 @@ function App() {
           <HoleSetupForm
             hole={holeForm}
             isEditing={editingHoleId != null}
+            shape={holeGenerationShape}
             onGenerate={(nextHole) => {
               setHoleForm(normalizeHole(nextHole));
               setSelectedHazardIndex(null);
+              setHoleEditorFitSignal((current) => current + 1);
             }}
+            onShapeChange={setHoleGenerationShape}
             onUpdateMeta={(nextHole) => setHoleForm(normalizeHole(nextHole))}
           />
 
@@ -1033,46 +1041,8 @@ function App() {
             <div className="helper-callout">
               <strong>How to edit</strong>
               <span>
-                Drag the green, pin, fairway bend points, and hazard handles directly on the map. Use the toolbar to add new hazards, then adjust shape and penalty below.
+                Use `Select / Drag` to move features, `Resize` to stretch edges or widths, and the component buttons to place new course elements directly on the map.
               </span>
-            </div>
-            <div className="form-grid">
-              <label className="field">
-                <span className="field__label">Wind MPH</span>
-                <input
-                  className="field__control"
-                  type="number"
-                  value={holeForm.wind.speed_mph}
-                  onChange={(event) => updateHoleField("wind", { ...holeForm.wind, speed_mph: Number(event.target.value) })}
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">Wind Direction</span>
-                <input
-                  className="field__control"
-                  type="number"
-                  value={holeForm.wind.direction_deg}
-                  onChange={(event) => updateHoleField("wind", { ...holeForm.wind, direction_deg: Number(event.target.value) })}
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">Tee X</span>
-                <input
-                  className="field__control"
-                  type="number"
-                  value={holeForm.tee.x}
-                  onChange={(event) => updateHoleField("tee", { ...holeForm.tee, x: Number(event.target.value) })}
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">Tee Y</span>
-                <input
-                  className="field__control"
-                  type="number"
-                  value={holeForm.tee.y}
-                  onChange={(event) => updateHoleField("tee", { ...holeForm.tee, y: Number(event.target.value) })}
-                />
-              </label>
             </div>
 
             {selectedHazard ? (
@@ -1188,16 +1158,9 @@ function App() {
               </div>
             ) : (
               <div className="section-divider">
-                <p className="empty-copy">Select a hazard on the map to edit its kind, shape, and dimensions.</p>
+                <p className="empty-copy">Select a hazard on the map to fine-tune its kind, shape, and dimensions.</p>
               </div>
             )}
-
-            <div className="action-row">
-              <button className="primary-button primary-button--inline" type="button" onClick={() => void submitHoleForm()} disabled={saving}>
-                {saving ? "Saving..." : editingHoleId ? "Update Hole" : "Create Hole"}
-              </button>
-              {editingHoleId ? <button className="danger-button" type="button" onClick={() => void removeCurrentHole()} disabled={saving}>Delete Hole</button> : null}
-            </div>
           </section>
 
           <InteractiveHoleMap
@@ -1208,6 +1171,60 @@ function App() {
             onChange={setHoleForm}
             onSelectHazard={setSelectedHazardIndex}
           />
+
+          <section className="card">
+            <div className="card__header">
+              <div>
+                <p className="eyebrow">Advanced</p>
+                <h2>Course Settings</h2>
+              </div>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span className="field__label">Wind MPH</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.wind.speed_mph}
+                  onChange={(event) => updateHoleField("wind", { ...holeForm.wind, speed_mph: Number(event.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">Wind Direction</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.wind.direction_deg}
+                  onChange={(event) => updateHoleField("wind", { ...holeForm.wind, direction_deg: Number(event.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">Tee X</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.tee.x}
+                  onChange={(event) => updateHoleField("tee", { ...holeForm.tee, x: Number(event.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">Tee Y</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.tee.y}
+                  onChange={(event) => updateHoleField("tee", { ...holeForm.tee, y: Number(event.target.value) })}
+                />
+              </label>
+            </div>
+
+            <div className="action-row">
+              <button className="primary-button primary-button--inline" type="button" onClick={() => void submitHoleForm()} disabled={saving}>
+                {saving ? "Saving..." : editingHoleId ? "Update Hole" : "Create Hole"}
+              </button>
+              {editingHoleId ? <button className="danger-button" type="button" onClick={() => void removeCurrentHole()} disabled={saving}>Delete Hole</button> : null}
+            </div>
+          </section>
         </section>
       </div>
     );
