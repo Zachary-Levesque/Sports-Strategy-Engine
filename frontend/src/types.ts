@@ -4,6 +4,8 @@ export type Handedness = "right" | "left";
 export type MissTendency = "center" | "none" | "left" | "right" | "pull" | "push";
 export type LieType = "tee" | "fairway" | "rough" | "bunker" | "recovery";
 export type ShotMode = "tee" | "custom";
+export type HazardKind = "bunker" | "water" | "ob" | "recovery";
+export type HazardShape = "circle" | "rectangle" | "corridor";
 
 export interface ClubData {
   id?: number;
@@ -69,8 +71,8 @@ export interface WindData {
 }
 
 export interface HazardData {
-  kind: string;
-  shape: string;
+  kind: HazardKind | string;
+  shape: HazardShape | string;
   center_x: number;
   center_y: number;
   radius?: number | null;
@@ -93,11 +95,13 @@ export interface HolePayload {
   tee: AimPoint;
   green_center: AimPoint;
   green_radius: number;
+  pin_position?: AimPoint | null;
   fairway_center_x: number;
   fairway_width: number;
   fairway_start_y: number;
   fairway_end_y: number;
   rough_width: number;
+  fairway_path?: AimPoint[] | null;
   hazards: HazardData[];
   wind: WindData;
 }
@@ -173,6 +177,7 @@ export interface RecommendationRequest {
   ball_position?: AimPoint;
   lie?: LieType;
   target_position?: AimPoint;
+  wind_override?: WindData;
 }
 
 export interface ScenarioSummary {
