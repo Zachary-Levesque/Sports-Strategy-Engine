@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
 
-import type { HolePayload } from "../types";
-import { createGeneratedHoleDraft, suggestHoleId } from "../lib/holeEditor";
+import type { HoleLayoutShape, HolePayload } from "../types";
+import { HOLE_LAYOUT_OPTIONS, createGeneratedHoleDraft, suggestHoleId } from "../lib/holeEditor";
 
 interface HoleSetupFormProps {
   hole: HolePayload;
   isEditing: boolean;
+  shape: HoleLayoutShape;
   onGenerate: (hole: HolePayload) => void;
+  onShapeChange: (shape: HoleLayoutShape) => void;
   onUpdateMeta: (hole: HolePayload) => void;
 }
 
 export function HoleSetupForm({
   hole,
   isEditing,
+  shape,
   onGenerate,
+  onShapeChange,
   onUpdateMeta,
 }: HoleSetupFormProps) {
   const [setup, setSetup] = useState({
@@ -82,7 +86,7 @@ export function HoleSetupForm({
           </select>
         </label>
         <label className="field">
-          <span className="field__label">Yardage</span>
+          <span className="field__label">Length / Yardage</span>
           <input
             className="field__control"
             type="number"
@@ -92,6 +96,26 @@ export function HoleSetupForm({
             onChange={(event) => update("yardage", Number(event.target.value))}
           />
         </label>
+        <label className="field">
+          <span className="field__label">Shape</span>
+          <select
+            className="field__control"
+            value={shape}
+            onChange={(event) => onShapeChange(event.target.value as HoleLayoutShape)}
+          >
+            {HOLE_LAYOUT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="helper-callout">
+        <strong>Generation logic</strong>
+        <span>
+          The generator uses par, length, and shape to build the fairway bend, landing zones, hazards, and green placement before you start editing.
+        </span>
       </div>
       <div className="action-row">
         <button
@@ -104,6 +128,7 @@ export function HoleSetupForm({
                 name: setup.name,
                 par: setup.par,
                 yardage: setup.yardage,
+                shape,
               }),
             )
           }
