@@ -68,7 +68,7 @@ export function getProjection(
   ];
   const ys = [
     0,
-    hole.green_center.y + hole.green_radius + 15,
+    hole.green_center.y + hole.green_radius + 18,
     ...(hole.pin_position ? [hole.pin_position.y] : []),
     hole.fairway_start_y,
     hole.fairway_end_y,
@@ -81,13 +81,13 @@ export function getProjection(
     ...(extras.keyPoints?.map((point) => point.y) ?? []),
   ];
 
-  const padding = 24;
+  const padding = 30;
   const minX = Math.min(...xs) - padding;
   const maxX = Math.max(...xs) + padding;
   const minY = Math.min(...ys) - padding;
   const maxY = Math.max(...ys) + padding;
-  const width = Math.max(maxX - minX, 140);
-  const height = Math.max(maxY - minY, 240);
+  const width = Math.max(maxX - minX, 160);
+  const height = Math.max(maxY - minY, 250);
 
   return {
     minX,
@@ -116,7 +116,24 @@ export function fairwayPathForRender(hole: HolePayload): AimPoint[] {
 }
 
 export function fairwayPathSvg(path: AimPoint[], projection: HoleMapProjection): string {
-  return path
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${projection.toSvgX(point.x)} ${projection.toSvgY(point.y)}`)
-    .join(" ");
+  if (path.length <= 2) {
+    return path
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${projection.toSvgX(point.x)} ${projection.toSvgY(point.y)}`)
+      .join(" ");
+  }
+
+  const segments: string[] = [`M ${projection.toSvgX(path[0].x)} ${projection.toSvgY(path[0].y)}`];
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const current = path[index];
+    const next = path[index + 1];
+    const midX = (projection.toSvgX(current.x) + projection.toSvgX(next.x)) / 2;
+    const midY = (projection.toSvgY(current.y) + projection.toSvgY(next.y)) / 2;
+    segments.push(
+      `Q ${projection.toSvgX(current.x)} ${projection.toSvgY(current.y)} ${midX} ${midY}`,
+    );
+    if (index === path.length - 2) {
+      segments.push(`T ${projection.toSvgX(next.x)} ${projection.toSvgY(next.y)}`);
+    }
+  }
+  return segments.join(" ");
 }
