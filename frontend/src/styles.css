@@ -99,6 +99,10 @@ select:disabled {
   gap: 20px;
 }
 
+.editor-layout--course {
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+}
+
 .card {
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(24, 36, 46, 0.08);
@@ -463,8 +467,16 @@ select:disabled {
 
 .action-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 22px;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .history-grid {
@@ -495,6 +507,13 @@ select:disabled {
   color: #60717c;
 }
 
+.map-hint {
+  margin: 8px 0 0;
+  color: #224f3a;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .map-yardage {
   padding: 10px 14px;
   border-radius: 999px;
@@ -510,16 +529,27 @@ select:disabled {
   display: block;
 }
 
+.hole-map--interactive {
+  cursor: crosshair;
+}
+
 .hole-map__base {
   fill: #d9c6a2;
 }
 
-.hole-map__rough {
-  fill: rgba(110, 142, 95, 0.55);
+.hole-map__rough-path,
+.hole-map__fairway-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.hole-map__fairway {
-  fill: #86ab6d;
+.hole-map__rough-path {
+  stroke: rgba(110, 142, 95, 0.55);
+}
+
+.hole-map__fairway-path {
+  stroke: #86ab6d;
 }
 
 .hole-map__green {
@@ -530,6 +560,15 @@ select:disabled {
 
 .hole-map__tee {
   fill: #244f3a;
+}
+
+.hole-map__label {
+  fill: rgba(24, 36, 46, 0.84);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 .hole-map__line {
@@ -576,10 +615,45 @@ select:disabled {
   stroke-width: 1.8;
 }
 
+.hole-map__start-point {
+  fill: #224f3a;
+  stroke: white;
+  stroke-width: 1.6;
+}
+
 .hole-map__target-point {
   fill: #224f3a;
   stroke: white;
   stroke-width: 1.5;
+}
+
+.hole-map__hazard {
+  stroke: rgba(24, 36, 46, 0.15);
+  stroke-width: 1.5;
+}
+
+.hole-map__hazard--selected {
+  stroke: #1e4e86;
+  stroke-width: 2.4;
+}
+
+.editor-handle {
+  fill: #ffffff;
+  stroke: #1e4e86;
+  stroke-width: 2;
+  cursor: grab;
+}
+
+.editor-handle--selected {
+  fill: #e3f0ff;
+}
+
+.editor-handle__label {
+  fill: #1f3242;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
 }
 
 .map-legend {
@@ -630,6 +704,15 @@ select:disabled {
 
 .legend-swatch--aim {
   background: #c26a2f;
+}
+
+.legend-swatch--ball {
+  background: #224f3a;
+}
+
+.legend-swatch--pin {
+  background: #244f3a;
+  box-shadow: inset 0 0 0 2px white;
 }
 
 @media (max-width: 920px) {
