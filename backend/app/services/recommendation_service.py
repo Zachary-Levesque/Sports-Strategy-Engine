@@ -15,6 +15,7 @@ from backend.app.schemas.recommendation import (
     RecommendationHistoryItem,
     RecommendationRequest,
     RecommendationResponse,
+    ShotSampleSchema,
     ShotCloudSummary,
     SimulationResponse,
     StrategySummary,
@@ -22,6 +23,7 @@ from backend.app.schemas.recommendation import (
 from backend.app.services.hole_service import get_hole_by_external_id, to_domain as hole_to_domain
 from backend.app.services.player_service import get_player_by_name, to_domain as player_to_domain
 from backend.app.simulation.decision_engine import rank_strategies
+from backend.app.simulation.hole_generator import Point
 from backend.app.simulation.monte_carlo import SimulationResult
 from backend.app.utils.serialization import dumps
 
@@ -83,6 +85,40 @@ def _shot_cloud_summary(result: SimulationResult) -> ShotCloudSummary:
     )
 
 
+def _shot_samples(result: SimulationResult, limit: int = 200) -> list[ShotSampleSchema]:
+    return [
+        ShotSampleSchema(
+            x=sample.x,
+            y=sample.y,
+            surface=sample.surface,
+            total_strokes=sample.total_strokes,
+        )
+        for sample in result.samples[:limit]
+    ]
+
+
+def _resolve_context(
+    payload: RecommendationRequest,
+    hole,
+) -> tuple[str, Point, Point]:
+    if payload.shot_mode == "custom":
+        if payload.ball_position is None:
+            raise SimulationError("Custom shot mode requires ball_position.")
+        lie = payload.lie or "fairway"
+        start_position = Point(x=payload.ball_position.x, y=payload.ball_position.y)
+        if payload.target_position is not None:
+            target_position = Point(x=payload.target_position.x, y=payload.target_position.y)
+        else:
+            target_position = Point(x=hole.green_center_x, y=hole.green_center_y)
+        return lie, start_position, target_position
+
+    return (
+        "tee",
+        Point(x=hole.tee_x, y=hole.tee_y),
+        Point(x=hole.green_center_x, y=hole.green_center_y),
+    )
+
+
 def _persist_result(
     db: Session,
     payload: RecommendationRequest,
@@ -117,6 +153,9 @@ def _persist_result(
 def build_recommendation_response(
     payload: RecommendationRequest,
     result,
+    start_position: Point,
+    target_position: Point,
+    lie: str,
     recommendation_id: int | None = None,
 ) -> RecommendationResponse:
     best = _strategy_summary(result.best)
@@ -127,6 +166,10 @@ def build_recommendation_response(
         recommendation_id=recommendation_id,
         player_name=payload.player_name,
         hole_id=payload.hole_id,
+        shot_mode=payload.shot_mode,
+        start_position=AimPointSchema(x=start_position.x, y=start_position.y),
+        target_position=AimPointSchema(x=target_position.x, y=target_position.y),
+        lie=lie,
         best_strategy=best,
         top_alternatives=[_strategy_summary(item) for item in result.ranked_strategies[1:4]],
         probabilities=probabilities,
@@ -134,6 +177,7 @@ def build_recommendation_response(
         risk_adjusted_score=result.best.metrics.risk_adjusted_score,
         variance=result.best.metrics.variance,
         shot_cloud_summary=shot_cloud_summary,
+        shot_samples=_shot_samples(result.best),
         explanation=result.explanation,
     )
 
@@ -142,6 +186,7 @@ def _compute(db: Session, payload: RecommendationRequest) -> RecommendationCompu
     player = get_player_by_name(db, payload.player_name)
     hole = get_hole_by_external_id(db, payload.hole_id)
     resolved_player = player_to_domain(player, payload.risk_tolerance_override)
+    lie, start_position, target_position = _resolve_context(payload, hole)
 
     started = time.perf_counter()
     try:
@@ -150,12 +195,22 @@ def _compute(db: Session, payload: RecommendationRequest) -> RecommendationCompu
             hole=hole_to_domain(hole),
             iterations=payload.iterations,
             risk_tolerance_override=payload.risk_tolerance_override,
+            shot_mode=payload.shot_mode,
+            start_position=start_position,
+            lie=lie,
+            target_position=target_position,
         )
     except Exception as exc:  # pragma: no cover - surfaced via tests through API handler
         raise SimulationError(f"Simulation failed: {exc}") from exc
 
     duration_ms = (time.perf_counter() - started) * 1000
-    response = build_recommendation_response(payload, result)
+    response = build_recommendation_response(
+        payload=payload,
+        result=result,
+        start_position=start_position,
+        target_position=target_position,
+        lie=lie,
+    )
     response = response.model_copy(
         update={
             "recommendation_id": _persist_result(
@@ -183,6 +238,10 @@ def simulate(db: Session, payload: RecommendationRequest) -> SimulationResponse:
         simulation_id=response.recommendation_id,
         player_name=response.player_name,
         hole_id=response.hole_id,
+        shot_mode=response.shot_mode,
+        start_position=response.start_position,
+        target_position=response.target_position,
+        lie=response.lie,
         best_strategy=response.best_strategy,
         top_alternatives=response.top_alternatives,
         probabilities=response.probabilities,
@@ -190,6 +249,7 @@ def simulate(db: Session, payload: RecommendationRequest) -> SimulationResponse:
         risk_adjusted_score=response.risk_adjusted_score,
         variance=response.variance,
         shot_cloud_summary=response.shot_cloud_summary,
+        shot_samples=response.shot_samples,
         explanation=response.explanation,
         ranked_strategy_count=computation.ranked_strategy_count,
     )

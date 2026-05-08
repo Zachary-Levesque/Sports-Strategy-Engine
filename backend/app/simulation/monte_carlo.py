@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from backend.app.simulation.hole_generator import Hole, classify_surface
+from backend.app.simulation.hole_generator import Hole, Point, classify_surface
 from backend.app.simulation.player_model import PlayerProfile, ShotOption, build_shot_distribution
 from backend.app.simulation.risk_metrics import (
     StrategyMetrics,
@@ -59,6 +59,7 @@ def simulate_strategy(
     option: ShotOption,
     iterations: int = 3000,
     lie: str = "tee",
+    start_position: Point | None = None,
     rng_seed: int = 7,
     sample_cap: int = 350,
 ) -> SimulationResult:
@@ -87,7 +88,8 @@ def simulate_strategy(
     eigenvalues = np.linalg.eigvalsh(covariance)
     if np.any(eigenvalues < -1e-9):
         raise ValueError(f"Shot covariance matrix is not positive semidefinite: {covariance.tolist()}")
-    mean = np.array([distribution.mean_x, distribution.mean_y])
+    start_y = start_position.y if start_position is not None else hole.tee.y
+    mean = np.array([distribution.mean_x, distribution.mean_y + start_y])
     draws = rng.multivariate_normal(mean, covariance, size=iterations)
 
     strokes: list[float] = []

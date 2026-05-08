@@ -12,6 +12,13 @@ class AimPointSchema(BaseModel):
     y: float
 
 
+class ShotSampleSchema(BaseModel):
+    x: float
+    y: float
+    surface: str
+    total_strokes: float
+
+
 class ProbabilitySummary(BaseModel):
     penalty_probability: float
     fairway_probability: float
@@ -52,6 +59,10 @@ class RecommendationRequest(BaseModel):
     player_name: str
     hole_id: str
     iterations: int = Field(get_settings().default_iterations, ge=100, le=50000)
+    shot_mode: Literal["tee", "custom"] = Field(default="tee")
+    ball_position: AimPointSchema | None = None
+    lie: Literal["tee", "fairway", "rough", "bunker", "recovery"] | None = None
+    target_position: AimPointSchema | None = None
     risk_tolerance_override: Literal["low", "medium", "high"] | None = Field(default=None)
 
 
@@ -59,6 +70,10 @@ class RecommendationResponse(BaseModel):
     recommendation_id: int | None = None
     player_name: str
     hole_id: str
+    shot_mode: Literal["tee", "custom"] = "tee"
+    start_position: AimPointSchema
+    target_position: AimPointSchema
+    lie: Literal["tee", "fairway", "rough", "bunker", "recovery"]
     best_strategy: StrategySummary
     top_alternatives: list[StrategySummary]
     probabilities: ProbabilitySummary
@@ -66,6 +81,7 @@ class RecommendationResponse(BaseModel):
     risk_adjusted_score: float
     variance: float
     shot_cloud_summary: ShotCloudSummary
+    shot_samples: list[ShotSampleSchema]
     explanation: str
 
 
@@ -73,6 +89,10 @@ class SimulationResponse(BaseModel):
     simulation_id: int | None = None
     player_name: str
     hole_id: str
+    shot_mode: Literal["tee", "custom"] = "tee"
+    start_position: AimPointSchema
+    target_position: AimPointSchema
+    lie: Literal["tee", "fairway", "rough", "bunker", "recovery"]
     best_strategy: StrategySummary
     top_alternatives: list[StrategySummary]
     probabilities: ProbabilitySummary
@@ -80,6 +100,7 @@ class SimulationResponse(BaseModel):
     risk_adjusted_score: float
     variance: float
     shot_cloud_summary: ShotCloudSummary
+    shot_samples: list[ShotSampleSchema]
     explanation: str
     ranked_strategy_count: int
 
