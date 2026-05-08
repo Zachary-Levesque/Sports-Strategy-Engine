@@ -23,6 +23,12 @@ select {
   font: inherit;
 }
 
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -169,6 +175,11 @@ select {
   box-shadow: 0 0 0 4px rgba(125, 170, 105, 0.16);
 }
 
+.field__help {
+  color: #60717c;
+  font-size: 0.82rem;
+}
+
 .primary-button {
   width: 100%;
   border: none;
@@ -263,6 +274,15 @@ select {
   margin-bottom: 16px;
 }
 
+.success-banner {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(76, 136, 86, 0.12);
+  color: #1f5a29;
+  border: 1px solid rgba(76, 136, 86, 0.16);
+  margin-bottom: 16px;
+}
+
 .result-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -306,6 +326,12 @@ select {
   border-radius: 10px;
   padding: 8px 10px;
   background: white;
+}
+
+.table-input:focus {
+  outline: none;
+  border-color: #779f68;
+  box-shadow: 0 0 0 3px rgba(125, 170, 105, 0.14);
 }
 
 .alternatives-table {
@@ -411,10 +437,28 @@ select {
   gap: 12px;
 }
 
+.form-grid--tight {
+  margin-bottom: 8px;
+}
+
 .section-divider {
   margin-top: 22px;
   padding-top: 18px;
   border-top: 1px solid rgba(24, 36, 46, 0.08);
+}
+
+.helper-callout {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border-radius: 16px;
+  background: rgba(244, 249, 241, 0.9);
+  color: #41515c;
+}
+
+.helper-callout strong {
+  color: #22343d;
 }
 
 .action-row {
@@ -444,6 +488,148 @@ select {
 
 .history-card__header span {
   display: block;
+}
+
+.map-subtitle {
+  margin: 6px 0 0;
+  color: #60717c;
+}
+
+.map-yardage {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(34, 79, 58, 0.1);
+  color: #224f3a;
+  font-weight: 700;
+}
+
+.hole-map {
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  display: block;
+}
+
+.hole-map__base {
+  fill: #d9c6a2;
+}
+
+.hole-map__rough {
+  fill: rgba(110, 142, 95, 0.55);
+}
+
+.hole-map__fairway {
+  fill: #86ab6d;
+}
+
+.hole-map__green {
+  fill: #a8d389;
+  stroke: rgba(32, 70, 44, 0.25);
+  stroke-width: 2;
+}
+
+.hole-map__tee {
+  fill: #244f3a;
+}
+
+.hole-map__line {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 7 7;
+}
+
+.hole-map__line--target {
+  stroke: rgba(36, 79, 58, 0.4);
+}
+
+.hole-map__line--aim {
+  stroke: #c26a2f;
+}
+
+.hole-map__sample {
+  opacity: 0.42;
+}
+
+.hole-map__sample--fairway,
+.hole-map__sample--rough,
+.hole-map__sample--green,
+.hole-map__sample--recovery {
+  fill: #244f3a;
+}
+
+.hole-map__sample--bunker {
+  fill: #c99f57;
+}
+
+.hole-map__sample--water {
+  fill: #2b83bd;
+}
+
+.hole-map__sample--ob {
+  fill: #b43f3f;
+}
+
+.hole-map__aim-point {
+  fill: #c26a2f;
+  stroke: white;
+  stroke-width: 1.8;
+}
+
+.hole-map__target-point {
+  fill: #224f3a;
+  stroke: white;
+  stroke-width: 1.5;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 14px;
+  color: #4a5b65;
+  font-size: 0.88rem;
+}
+
+.map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-swatch--fairway {
+  background: #86ab6d;
+}
+
+.legend-swatch--rough {
+  background: rgba(110, 142, 95, 0.65);
+}
+
+.legend-swatch--green {
+  background: #a8d389;
+}
+
+.legend-swatch--bunker {
+  background: #e6c98c;
+}
+
+.legend-swatch--water {
+  background: #69a9d6;
+}
+
+.legend-swatch--ob {
+  background: #d9534f;
+}
+
+.legend-swatch--aim {
+  background: #c26a2f;
 }
 
 @media (max-width: 920px) {
