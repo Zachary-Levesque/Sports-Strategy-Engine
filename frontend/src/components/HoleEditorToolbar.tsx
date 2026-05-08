@@ -4,6 +4,7 @@ export type HoleEditorTool =
   | "select"
   | "pan"
   | "resize"
+  | "delete"
   | "place-fairway"
   | "place-green"
   | "place-rough"
@@ -26,6 +27,7 @@ const TOOL_LABELS: Array<{ tool: HoleEditorTool; label: string }> = [
   { tool: "select", label: "Select / Drag" },
   { tool: "resize", label: "Resize" },
   { tool: "pan", label: "Pan" },
+  { tool: "delete", label: "Delete mode" },
   { tool: "place-fairway", label: "Fairway" },
   { tool: "place-green", label: "Green" },
   { tool: "place-rough", label: "Rough" },
