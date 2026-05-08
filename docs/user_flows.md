@@ -16,14 +16,15 @@ This document describes the complete local workflows supported by the Sports Str
 2. Confirm the backend status indicator shows that the API is reachable.
 3. Choose a scenario, or pick a player and hole manually.
 4. Choose `Tee shot` or `Approach / custom shot`.
-5. If using `Approach / custom shot`, enter:
+5. If using `Approach / custom shot`, click directly on the hole map to place the ball position.
+6. Adjust:
    - current lie
-   - ball X/Y
-   - target X/Y
-6. Set the iteration count.
-7. Optionally set a risk tolerance override.
-8. Click `Run Recommendation`.
-9. Review:
+   - target X/Y if you want something other than the default pin position
+   - wind speed and direction
+7. Set the iteration count.
+8. Optionally set a risk tolerance override.
+9. Click `Run Recommendation`.
+10. Review:
    - best strategy card
    - top alternatives table
    - probability breakdown
@@ -33,6 +34,7 @@ This document describes the complete local workflows supported by the Sports Str
 
 Successful behavior:
 - the run button disables while the request is in flight
+- clicking the map switches the workflow into custom-shot positioning
 - a recommendation appears without page reload
 - the result is added to the `History` tab after the request succeeds
 
@@ -62,23 +64,30 @@ Successful behavior:
 
 1. Open the `Holes` tab.
 2. Select an existing hole or click `New Hole`.
-3. Update:
+3. For a new hole, choose:
    - hole id and display name
    - par
-   - tee position
-   - green geometry
-   - fairway geometry
-   - rough width
-   - wind direction and speed
-   - hazards including type, shape, geometry, and penalty strokes
-4. Click `Save Hole`.
-5. To remove a hole, open it and click `Delete Hole`.
+   - yardage
+4. Click `Generate Layout`.
+5. Use the interactive course editor to drag and resize:
+   - green and pin
+   - fairway path
+   - fairway width and rough width
+   - hazards
+6. Use the toolbar to add:
+   - bunker
+   - water
+   - OB
+   - recovery
+7. Adjust wind direction and speed if needed.
+8. Click `Save Hole`.
+9. To remove a hole, open it and click `Delete Hole`.
 
 Successful behavior:
 - saved holes remain after refresh
 - updated holes are available immediately in `Strategy`
 - deleted holes are removed from the list and no longer appear in scenarios
-- the live SVG hole preview updates immediately while geometry or hazard fields change
+- the live SVG hole preview updates immediately while features are dragged or resized
 
 ## Recommendation History Flow
 
