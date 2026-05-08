@@ -110,12 +110,12 @@ export function createGeneratedHoleDraft(setup: HoleSetupValues): HolePayload {
   };
 }
 
-export function normalizeHole(hole: HolePayload): HolePayload {
+export function normalizeHole<T extends HolePayload>(hole: T): T {
   const pinPosition = hole.pin_position ?? hole.green_center;
-  const fairwayPath =
+  const normalizedFairwayPath =
     hole.fairway_path && hole.fairway_path.length >= 2
       ? hole.fairway_path
-      : defaultFairwayPath(hole.par, hole.yardage).map((point, index, path) => {
+      : defaultFairwayPath(hole.par, hole.yardage).map((_point, index, path) => {
           if (path.length === 2) {
             return index === 0
               ? { x: hole.fairway_center_x, y: hole.fairway_start_y }
@@ -131,8 +131,8 @@ export function normalizeHole(hole: HolePayload): HolePayload {
   return {
     ...hole,
     pin_position: pinPosition,
-    fairway_path,
-  };
+    fairway_path: normalizedFairwayPath,
+  } as T;
 }
 
 export function syncLegacyFairwayFields(hole: HolePayload, fairwayPath: AimPoint[]): HolePayload {
