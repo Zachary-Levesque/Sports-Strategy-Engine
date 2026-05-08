@@ -17,11 +17,15 @@ import {
   updatePlayer,
 } from "./api/client";
 import { AlternativesTable } from "./components/AlternativesTable";
+import { HoleEditorToolbar, type HoleEditorTool } from "./components/HoleEditorToolbar";
 import { HoleMap } from "./components/HoleMap";
 import { HoleSelector } from "./components/HoleSelector";
+import { HoleSetupForm } from "./components/HoleSetupForm";
+import { InteractiveHoleMap } from "./components/InteractiveHoleMap";
 import { PlayerSelector } from "./components/PlayerSelector";
 import { ProbabilityBreakdown } from "./components/ProbabilityBreakdown";
 import { RecommendationCard } from "./components/RecommendationCard";
+import { createGeneratedHoleDraft, normalizeHole } from "./lib/holeEditor";
 import type {
   AimPoint,
   ClubData,
@@ -38,6 +42,7 @@ import type {
   ScenarioSummary,
   ShotMode,
   ShotShape,
+  WindData,
 } from "./types";
 
 type View = "strategy" | "players" | "holes" | "history";
@@ -63,7 +68,6 @@ const shotModeOptions: Array<{ value: ShotMode; label: string }> = [
 const lieOptions: LieType[] = ["tee", "fairway", "rough", "bunker", "recovery"];
 const handednessOptions = ["right", "left"] as const;
 const missOptions = ["center", "none", "left", "right", "pull", "push"] as const;
-const parOptions = [3, 4, 5] as const;
 
 let nextDraftId = 0;
 
@@ -116,17 +120,6 @@ function draftToClub(draft: ClubDraft): ClubData {
   };
 }
 
-function emptyHazard(): HazardData {
-  return {
-    kind: "bunker",
-    shape: "circle",
-    center_x: 0,
-    center_y: 250,
-    radius: 10,
-    penalty_strokes: 0,
-  };
-}
-
 function emptyPlayer(): PlayerPayload {
   return {
     player_name: "",
@@ -140,22 +133,19 @@ function emptyPlayer(): PlayerPayload {
 }
 
 function emptyHole(): HolePayload {
-  return {
-    hole_id: "",
-    name: "",
+  return createGeneratedHoleDraft({
+    hole_id: "custom_par4_410",
+    name: "Custom Par 4",
     par: 4,
-    yardage: 400,
-    tee: { x: 0, y: 0 },
-    green_center: { x: 0, y: 400 },
-    green_radius: 18,
-    fairway_center_x: 0,
-    fairway_width: 34,
-    fairway_start_y: 40,
-    fairway_end_y: 380,
-    rough_width: 18,
-    hazards: [emptyHazard()],
-    wind: { speed_mph: 8, direction_deg: 45 },
-  };
+    yardage: 410,
+  });
+}
+
+function formatCoordinate(point: AimPoint | undefined | null): string {
+  if (!point) {
+    return "n/a";
+  }
+  return `${point.x.toFixed(1)}, ${point.y.toFixed(1)}`;
 }
 
 function App() {
@@ -181,6 +171,7 @@ function App() {
   const [customLie, setCustomLie] = useState<LieType>("fairway");
   const [customBallPosition, setCustomBallPosition] = useState<AimPoint>({ x: 0, y: 0 });
   const [customTargetPosition, setCustomTargetPosition] = useState<AimPoint>({ x: 0, y: 0 });
+  const [strategyWind, setStrategyWind] = useState<WindData>({ speed_mph: 8, direction_deg: 45 });
   const [result, setResult] = useState<RecommendationResponse | null>(null);
   const [selectedHoleDetail, setSelectedHoleDetail] = useState<HoleDetail | null>(null);
 
@@ -190,10 +181,32 @@ function App() {
 
   const [holeForm, setHoleForm] = useState<HolePayload>(emptyHole());
   const [editingHoleId, setEditingHoleId] = useState<string | null>(null);
+  const [holeEditorTool, setHoleEditorTool] = useState<HoleEditorTool>("select");
+  const [selectedHazardIndex, setSelectedHazardIndex] = useState<number | null>(null);
 
   useEffect(() => {
     void loadInitialData();
   }, []);
+
+  const activePlayer = useMemo(
+    () => players.find((player) => player.player_name === selectedPlayer) ?? null,
+    [players, selectedPlayer],
+  );
+  const activeHole = useMemo(
+    () => holes.find((hole) => hole.hole_id === selectedHole) ?? null,
+    [holes, selectedHole],
+  );
+  const mapHole = useMemo(() => (selectedHoleDetail ? normalizeHole(selectedHoleDetail) : null), [selectedHoleDetail]);
+  const selectedHazard =
+    selectedHazardIndex != null && holeForm.hazards[selectedHazardIndex]
+      ? holeForm.hazards[selectedHazardIndex]
+      : null;
+
+  useEffect(() => {
+    if (activePlayer) {
+      setRiskTolerance(activePlayer.risk_tolerance);
+    }
+  }, [activePlayer]);
 
   useEffect(() => {
     if (!selectedHole) {
@@ -203,13 +216,14 @@ function App() {
     let cancelled = false;
     void (async () => {
       try {
-        const detail = await getHole(selectedHole);
+        const detail = normalizeHole(await getHole(selectedHole));
         if (cancelled) {
           return;
         }
         setSelectedHoleDetail(detail);
-        setCustomBallPosition({ x: detail.tee.x, y: detail.tee.y });
-        setCustomTargetPosition({ x: detail.green_center.x, y: detail.green_center.y });
+        setCustomBallPosition(detail.tee);
+        setCustomTargetPosition(detail.pin_position ?? detail.green_center);
+        setStrategyWind(detail.wind);
       } catch {
         if (!cancelled) {
           setSelectedHoleDetail(null);
@@ -256,21 +270,6 @@ function App() {
     }
   }
 
-  const activePlayer = useMemo(
-    () => players.find((player) => player.player_name === selectedPlayer) ?? null,
-    [players, selectedPlayer],
-  );
-  const activeHole = useMemo(
-    () => holes.find((hole) => hole.hole_id === selectedHole) ?? null,
-    [holes, selectedHole],
-  );
-
-  useEffect(() => {
-    if (activePlayer) {
-      setRiskTolerance(activePlayer.risk_tolerance);
-    }
-  }, [activePlayer]);
-
   async function loadPlayerIntoForm(playerName: string) {
     const detail = await getPlayer(playerName);
     const nextPayload = {
@@ -290,24 +289,11 @@ function App() {
   }
 
   async function loadHoleIntoForm(holeId: string) {
-    const detail = await getHole(holeId);
-    setHoleForm({
-      hole_id: detail.hole_id,
-      name: detail.name,
-      par: detail.par,
-      yardage: detail.yardage,
-      tee: detail.tee,
-      green_center: detail.green_center,
-      green_radius: detail.green_radius,
-      fairway_center_x: detail.fairway_center_x,
-      fairway_width: detail.fairway_width,
-      fairway_start_y: detail.fairway_start_y,
-      fairway_end_y: detail.fairway_end_y,
-      rough_width: detail.rough_width,
-      hazards: detail.hazards,
-      wind: detail.wind,
-    });
+    const detail = normalizeHole(await getHole(holeId));
+    setHoleForm(detail);
     setEditingHoleId(holeId);
+    setSelectedHazardIndex(null);
+    setHoleEditorTool("select");
     setNotice("");
     setView("holes");
   }
@@ -323,6 +309,8 @@ function App() {
   function resetHoleForm() {
     setHoleForm(emptyHole());
     setEditingHoleId(null);
+    setSelectedHazardIndex(null);
+    setHoleEditorTool("select");
     setNotice("");
   }
 
@@ -358,6 +346,7 @@ function App() {
         ball_position: shotMode === "custom" ? customBallPosition : undefined,
         lie: shotMode === "custom" ? customLie : undefined,
         target_position: shotMode === "custom" ? customTargetPosition : undefined,
+        wind_override: strategyWind,
       });
       setResult(recommendation);
       setHistory(await getRecommendationHistory());
@@ -399,15 +388,17 @@ function App() {
     try {
       setSaving(true);
       setError("");
+      const payload = normalizeHole(holeForm);
       if (editingHoleId) {
-        await updateHole(editingHoleId, holeForm);
+        await updateHole(editingHoleId, payload);
       } else {
-        await createHole(holeForm);
+        await createHole(payload);
       }
+      setHoleForm(payload);
       await loadInitialData();
-      setEditingHoleId(holeForm.hole_id);
-      setSelectedHole(holeForm.hole_id);
-      setNotice(`Saved hole ${holeForm.name || holeForm.hole_id}.`);
+      setEditingHoleId(payload.hole_id);
+      setSelectedHole(payload.hole_id);
+      setNotice(`Saved hole ${payload.name || payload.hole_id}.`);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to save hole.");
     } finally {
@@ -467,6 +458,10 @@ function App() {
     setPlayerClubDrafts((current) => current.filter((_, row) => row !== index));
   }
 
+  function updateHoleField<K extends keyof HolePayload>(key: K, value: HolePayload[K]) {
+    setHoleForm((current) => normalizeHole({ ...current, [key]: value }));
+  }
+
   function updateHazard(index: number, key: keyof HazardData, value: string) {
     setHoleForm((current) => {
       const hazards = [...current.hazards];
@@ -479,34 +474,36 @@ function App() {
               ? null
               : Number(value),
       };
-      return { ...current, hazards };
+      return normalizeHole({ ...current, hazards });
     });
   }
 
-  function updateHoleField<K extends keyof HolePayload>(key: K, value: HolePayload[K]) {
-    setHoleForm((current) => ({ ...current, [key]: value }));
+  function deleteSelectedHazard() {
+    if (selectedHazardIndex == null) {
+      return;
+    }
+    setHoleForm((current) =>
+      normalizeHole({
+        ...current,
+        hazards: current.hazards.filter((_, index) => index !== selectedHazardIndex),
+      }),
+    );
+    setSelectedHazardIndex(null);
+  }
+
+  function handleStrategyMapClick(point: AimPoint) {
+    setShotMode("custom");
+    setCustomBallPosition({
+      x: Number(point.x.toFixed(1)),
+      y: Number(point.y.toFixed(1)),
+    });
+    if (mapHole) {
+      setCustomTargetPosition(mapHole.pin_position ?? mapHole.green_center);
+    }
+    setNotice("Ball position placed on the map. Custom shot mode is active.");
   }
 
   function renderStrategyView() {
-    const mapHole = selectedHoleDetail
-      ? {
-          hole_id: selectedHoleDetail.hole_id,
-          name: selectedHoleDetail.name,
-          par: selectedHoleDetail.par,
-          yardage: selectedHoleDetail.yardage,
-          tee: selectedHoleDetail.tee,
-          green_center: selectedHoleDetail.green_center,
-          green_radius: selectedHoleDetail.green_radius,
-          fairway_center_x: selectedHoleDetail.fairway_center_x,
-          fairway_width: selectedHoleDetail.fairway_width,
-          fairway_start_y: selectedHoleDetail.fairway_start_y,
-          fairway_end_y: selectedHoleDetail.fairway_end_y,
-          rough_width: selectedHoleDetail.rough_width,
-          hazards: selectedHoleDetail.hazards,
-          wind: selectedHoleDetail.wind,
-        }
-      : null;
-
     return (
       <div className="layout">
         <section className="control-panel card">
@@ -555,100 +552,151 @@ function App() {
                   ))}
                 </select>
                 <span className="field__help">
-                  Tee shot uses the hole tee. Custom shot starts from your selected ball position and lie.
+                  Click the course map to place a custom ball position instantly.
                 </span>
               </label>
 
               {shotMode === "custom" ? (
-                <div className="form-grid form-grid--tight">
+                <>
+                  <div className="helper-callout">
+                    <strong>Map-driven custom shots</strong>
+                    <span>
+                      Click the map to place the ball. Current ball: {formatCoordinate(customBallPosition)}. Current target:{" "}
+                      {formatCoordinate(customTargetPosition)}.
+                    </span>
+                  </div>
+                  <div className="form-grid form-grid--tight">
+                    <label className="field">
+                      <span className="field__label">Current lie</span>
+                      <select
+                        className="field__control"
+                        value={customLie}
+                        onChange={(event) => setCustomLie(event.target.value as LieType)}
+                      >
+                        {lieOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span className="field__label">Ball X</span>
+                      <input
+                        className="field__control"
+                        type="number"
+                        value={customBallPosition.x}
+                        onChange={(event) =>
+                          setCustomBallPosition((current) => ({ ...current, x: Number(event.target.value) }))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">Ball Y</span>
+                      <input
+                        className="field__control"
+                        type="number"
+                        value={customBallPosition.y}
+                        onChange={(event) =>
+                          setCustomBallPosition((current) => ({ ...current, y: Number(event.target.value) }))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">Target X</span>
+                      <input
+                        className="field__control"
+                        type="number"
+                        value={customTargetPosition.x}
+                        onChange={(event) =>
+                          setCustomTargetPosition((current) => ({ ...current, x: Number(event.target.value) }))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">Target Y</span>
+                      <input
+                        className="field__control"
+                        type="number"
+                        value={customTargetPosition.y}
+                        onChange={(event) =>
+                          setCustomTargetPosition((current) => ({ ...current, y: Number(event.target.value) }))
+                        }
+                      />
+                    </label>
+                  </div>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => {
+                      if (mapHole) {
+                        setCustomTargetPosition(mapHole.pin_position ?? mapHole.green_center);
+                      }
+                    }}
+                  >
+                    Reset target to pin
+                  </button>
+                </>
+              ) : null}
+
+              <div className="section-divider">
+                <div className="card__header">
+                  <div>
+                    <p className="eyebrow">Conditions</p>
+                    <h3>Wind and Risk</h3>
+                  </div>
+                </div>
+                <div className="form-grid">
                   <label className="field">
-                    <span className="field__label">Current lie</span>
+                    <span className="field__label">Wind MPH</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={strategyWind.speed_mph}
+                      onChange={(event) =>
+                        setStrategyWind((current) => ({ ...current, speed_mph: Number(event.target.value) }))
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Wind Direction</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={strategyWind.direction_deg}
+                      onChange={(event) =>
+                        setStrategyWind((current) => ({ ...current, direction_deg: Number(event.target.value) }))
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Iterations</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      min={100}
+                      max={50000}
+                      step={100}
+                      value={iterations}
+                      onChange={(event) => setIterations(Number(event.target.value))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Risk Tolerance</span>
                     <select
                       className="field__control"
-                      value={customLie}
-                      onChange={(event) => setCustomLie(event.target.value as LieType)}
+                      value={riskTolerance}
+                      onChange={(event) => setRiskTolerance(event.target.value as RiskTolerance)}
                     >
-                      {lieOptions.map((option) => (
+                      {riskOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
                       ))}
                     </select>
                   </label>
-                  <label className="field">
-                    <span className="field__label">Ball X</span>
-                    <input
-                      className="field__control"
-                      type="number"
-                      value={customBallPosition.x}
-                      onChange={(event) =>
-                        setCustomBallPosition((current) => ({ ...current, x: Number(event.target.value) }))
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">Ball Y</span>
-                    <input
-                      className="field__control"
-                      type="number"
-                      value={customBallPosition.y}
-                      onChange={(event) =>
-                        setCustomBallPosition((current) => ({ ...current, y: Number(event.target.value) }))
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">Target X</span>
-                    <input
-                      className="field__control"
-                      type="number"
-                      value={customTargetPosition.x}
-                      onChange={(event) =>
-                        setCustomTargetPosition((current) => ({ ...current, x: Number(event.target.value) }))
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">Target Y</span>
-                    <input
-                      className="field__control"
-                      type="number"
-                      value={customTargetPosition.y}
-                      onChange={(event) =>
-                        setCustomTargetPosition((current) => ({ ...current, y: Number(event.target.value) }))
-                      }
-                    />
-                  </label>
                 </div>
-              ) : null}
-
-              <label className="field">
-                <span className="field__label">Iterations</span>
-                <input
-                  className="field__control"
-                  type="number"
-                  min={100}
-                  max={50000}
-                  step={100}
-                  value={iterations}
-                  onChange={(event) => setIterations(Number(event.target.value))}
-                />
-              </label>
-
-              <label className="field">
-                <span className="field__label">Risk Tolerance</span>
-                <select
-                  className="field__control"
-                  value={riskTolerance}
-                  onChange={(event) => setRiskTolerance(event.target.value as RiskTolerance)}
-                >
-                  {riskOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              </div>
 
               <button
                 className="primary-button"
@@ -682,8 +730,8 @@ function App() {
             <div className="summary-block">
               <h3>Selected Hole</h3>
               <p>
-                {activeHole.name} is a par {activeHole.par} measuring {activeHole.yardage} yards with wind at{" "}
-                {activeHole.wind_speed_mph} mph from {activeHole.wind_direction_deg} degrees.
+                {activeHole.name} is a par {activeHole.par} measuring {activeHole.yardage} yards. Strategy mode is using{" "}
+                {strategyWind.speed_mph} mph at {strategyWind.direction_deg} degrees.
               </p>
               <button
                 className="secondary-button"
@@ -702,13 +750,15 @@ function App() {
               <RecommendationCard result={result} />
               {mapHole ? (
                 <HoleMap
-                  hole={mapHole}
+                  hole={{ ...mapHole, wind: strategyWind }}
                   title="Shot map"
                   subtitle="Live course view with the recommended line and landing cloud."
                   startPosition={result.start_position}
                   targetPosition={result.target_position}
                   aimPoint={result.best_strategy.aim_point}
                   shotSamples={result.shot_samples}
+                  onMapClick={handleStrategyMapClick}
+                  interactionHint="Click anywhere on the hole to move the custom ball location for the next run."
                 />
               ) : null}
               <ProbabilityBreakdown probabilities={result.probabilities} />
@@ -717,16 +767,20 @@ function App() {
           ) : mapHole ? (
             <div className="results-stack">
               <HoleMap
-                hole={mapHole}
-                title="Hole preview"
-                subtitle="Preview the live hole geometry before running the engine."
+                hole={{ ...mapHole, wind: strategyWind }}
+                title="Interactive strategy map"
+                subtitle="Preview the hole, click to place a drop location, and then run the engine."
                 startPosition={shotMode === "custom" ? customBallPosition : mapHole.tee}
-                targetPosition={shotMode === "custom" ? customTargetPosition : mapHole.green_center}
+                targetPosition={shotMode === "custom" ? customTargetPosition : mapHole.pin_position ?? mapHole.green_center}
+                onMapClick={handleStrategyMapClick}
+                interactionHint="Click on the course to set the ball position and switch into custom shot mode."
               />
               <section className="card empty-state">
                 <p className="eyebrow">Awaiting Simulation</p>
                 <h2>No recommendation yet</h2>
-                <p>Choose a player and hole, then run the engine to compare strategies and inspect the recommendation breakdown.</p>
+                <p>
+                  Choose a player and hole, click the map if you want a custom starting point, then run the engine to inspect the recommendation breakdown.
+                </p>
               </section>
             </div>
           ) : (
@@ -970,7 +1024,7 @@ function App() {
 
   function renderHolesView() {
     return (
-      <div className="editor-layout">
+      <div className="editor-layout editor-layout--course">
         <section className="card sidebar-card">
           <div className="card__header">
             <div>
@@ -992,62 +1046,191 @@ function App() {
         </section>
 
         <section className="results-stack">
-          <section className="card form-card">
+          <HoleSetupForm
+            hole={holeForm}
+            isEditing={editingHoleId != null}
+            onGenerate={(nextHole) => {
+              setHoleForm(normalizeHole(nextHole));
+              setSelectedHazardIndex(null);
+            }}
+            onUpdateMeta={(nextHole) => setHoleForm(normalizeHole(nextHole))}
+          />
+
+          <section className="card">
             <div className="card__header">
               <div>
-                <p className="eyebrow">Editor</p>
-                <h2>{editingHoleId ? `Edit ${editingHoleId}` : "Create Hole"}</h2>
+                <p className="eyebrow">Tools</p>
+                <h2>Course Feature Controls</h2>
               </div>
+            </div>
+            <HoleEditorToolbar
+              activeTool={holeEditorTool}
+              selectedHazardIndex={selectedHazardIndex}
+              onToolChange={setHoleEditorTool}
+              onDeleteSelected={deleteSelectedHazard}
+            />
+            <div className="helper-callout">
+              <strong>How to edit</strong>
+              <span>
+                Drag the green, pin, fairway bend points, and hazard handles directly on the map. Use the toolbar to add new hazards, then adjust shape and penalty below.
+              </span>
             </div>
             <div className="form-grid">
-              <label className="field"><span className="field__label">Hole ID</span><input className="field__control" value={holeForm.hole_id} onChange={(event) => updateHoleField("hole_id", event.target.value)} /></label>
-              <label className="field"><span className="field__label">Name</span><input className="field__control" value={holeForm.name} onChange={(event) => updateHoleField("name", event.target.value)} /></label>
-              <label className="field"><span className="field__label">Par</span><select className="field__control" value={holeForm.par} onChange={(event) => updateHoleField("par", Number(event.target.value) as HolePayload["par"])}>{parOptions.map((par) => <option key={par} value={par}>{par}</option>)}</select></label>
-              <label className="field"><span className="field__label">Yardage</span><input className="field__control" type="number" value={holeForm.yardage} onChange={(event) => updateHoleField("yardage", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Tee X</span><input className="field__control" type="number" value={holeForm.tee.x} onChange={(event) => updateHoleField("tee", { ...holeForm.tee, x: Number(event.target.value) })} /></label>
-              <label className="field"><span className="field__label">Tee Y</span><input className="field__control" type="number" value={holeForm.tee.y} onChange={(event) => updateHoleField("tee", { ...holeForm.tee, y: Number(event.target.value) })} /></label>
-              <label className="field"><span className="field__label">Green Center X</span><input className="field__control" type="number" value={holeForm.green_center.x} onChange={(event) => updateHoleField("green_center", { ...holeForm.green_center, x: Number(event.target.value) })} /></label>
-              <label className="field"><span className="field__label">Green Center Y</span><input className="field__control" type="number" value={holeForm.green_center.y} onChange={(event) => updateHoleField("green_center", { ...holeForm.green_center, y: Number(event.target.value) })} /></label>
-              <label className="field"><span className="field__label">Green Radius</span><input className="field__control" type="number" value={holeForm.green_radius} onChange={(event) => updateHoleField("green_radius", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Fairway Center X</span><input className="field__control" type="number" value={holeForm.fairway_center_x} onChange={(event) => updateHoleField("fairway_center_x", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Fairway Width</span><input className="field__control" type="number" value={holeForm.fairway_width} onChange={(event) => updateHoleField("fairway_width", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Fairway Start Y</span><input className="field__control" type="number" value={holeForm.fairway_start_y} onChange={(event) => updateHoleField("fairway_start_y", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Fairway End Y</span><input className="field__control" type="number" value={holeForm.fairway_end_y} onChange={(event) => updateHoleField("fairway_end_y", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Rough Width</span><input className="field__control" type="number" value={holeForm.rough_width} onChange={(event) => updateHoleField("rough_width", Number(event.target.value))} /></label>
-              <label className="field"><span className="field__label">Wind MPH</span><input className="field__control" type="number" value={holeForm.wind.speed_mph} onChange={(event) => updateHoleField("wind", { ...holeForm.wind, speed_mph: Number(event.target.value) })} /></label>
-              <label className="field"><span className="field__label">Wind Direction</span><input className="field__control" type="number" value={holeForm.wind.direction_deg} onChange={(event) => updateHoleField("wind", { ...holeForm.wind, direction_deg: Number(event.target.value) })} /></label>
+              <label className="field">
+                <span className="field__label">Wind MPH</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.wind.speed_mph}
+                  onChange={(event) => updateHoleField("wind", { ...holeForm.wind, speed_mph: Number(event.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">Wind Direction</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.wind.direction_deg}
+                  onChange={(event) => updateHoleField("wind", { ...holeForm.wind, direction_deg: Number(event.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">Tee X</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.tee.x}
+                  onChange={(event) => updateHoleField("tee", { ...holeForm.tee, x: Number(event.target.value) })}
+                />
+              </label>
+              <label className="field">
+                <span className="field__label">Tee Y</span>
+                <input
+                  className="field__control"
+                  type="number"
+                  value={holeForm.tee.y}
+                  onChange={(event) => updateHoleField("tee", { ...holeForm.tee, y: Number(event.target.value) })}
+                />
+              </label>
             </div>
 
-            <div className="section-divider">
-              <div className="card__header">
-                <div><p className="eyebrow">Hazards</p><h3>Hazard Editor</h3></div>
-                <button className="secondary-button" type="button" onClick={() => updateHoleField("hazards", [...holeForm.hazards, emptyHazard()])}>
-                  Add Hazard
-                </button>
+            {selectedHazard ? (
+              <div className="section-divider">
+                <div className="card__header">
+                  <div>
+                    <p className="eyebrow">Selected Feature</p>
+                    <h3>{selectedHazard.kind} hazard</h3>
+                  </div>
+                </div>
+                <div className="form-grid">
+                  <label className="field">
+                    <span className="field__label">Kind</span>
+                    <select
+                      className="field__control"
+                      value={selectedHazard.kind}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "kind", event.target.value)}
+                    >
+                      {["bunker", "water", "ob", "recovery"].map((kind) => (
+                        <option key={kind} value={kind}>
+                          {kind}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Shape</span>
+                    <select
+                      className="field__control"
+                      value={selectedHazard.shape}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "shape", event.target.value)}
+                    >
+                      {["circle", "rectangle", "corridor"].map((shape) => (
+                        <option key={shape} value={shape}>
+                          {shape}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Penalty Strokes</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.penalty_strokes}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "penalty_strokes", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Center X</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.center_x}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "center_x", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Center Y</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.center_y}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "center_y", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Radius</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.radius ?? ""}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "radius", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Width</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.width ?? ""}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "width", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Depth</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.depth ?? ""}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "depth", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Start Y</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.start_y ?? ""}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "start_y", event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">End Y</span>
+                    <input
+                      className="field__control"
+                      type="number"
+                      value={selectedHazard.end_y ?? ""}
+                      onChange={(event) => updateHazard(selectedHazardIndex!, "end_y", event.target.value)}
+                    />
+                  </label>
+                </div>
               </div>
-              <div className="table-wrap">
-                <table className="alternatives-table">
-                  <thead>
-                    <tr><th>Kind</th><th>Shape</th><th>Center X</th><th>Center Y</th><th>Radius</th><th>Width</th><th>Depth</th><th>Penalty</th><th /></tr>
-                  </thead>
-                  <tbody>
-                    {holeForm.hazards.map((hazard, index) => (
-                      <tr key={`${hazard.kind}-${index}`}>
-                        <td><input className="table-input" value={hazard.kind} onChange={(event) => updateHazard(index, "kind", event.target.value)} /></td>
-                        <td><input className="table-input" value={hazard.shape} onChange={(event) => updateHazard(index, "shape", event.target.value)} /></td>
-                        <td><input className="table-input" type="number" value={hazard.center_x} onChange={(event) => updateHazard(index, "center_x", event.target.value)} /></td>
-                        <td><input className="table-input" type="number" value={hazard.center_y} onChange={(event) => updateHazard(index, "center_y", event.target.value)} /></td>
-                        <td><input className="table-input" type="number" value={hazard.radius ?? ""} onChange={(event) => updateHazard(index, "radius", event.target.value)} /></td>
-                        <td><input className="table-input" type="number" value={hazard.width ?? ""} onChange={(event) => updateHazard(index, "width", event.target.value)} /></td>
-                        <td><input className="table-input" type="number" value={hazard.depth ?? ""} onChange={(event) => updateHazard(index, "depth", event.target.value)} /></td>
-                        <td><input className="table-input" type="number" value={hazard.penalty_strokes} onChange={(event) => updateHazard(index, "penalty_strokes", event.target.value)} /></td>
-                        <td><button className="danger-link" type="button" onClick={() => updateHoleField("hazards", holeForm.hazards.filter((_, row) => row !== index))}>Remove</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            ) : (
+              <div className="section-divider">
+                <p className="empty-copy">Select a hazard on the map to edit its kind, shape, and dimensions.</p>
               </div>
-            </div>
+            )}
+
             <div className="action-row">
               <button className="primary-button primary-button--inline" type="button" onClick={() => void submitHoleForm()} disabled={saving}>
                 {saving ? "Saving..." : editingHoleId ? "Update Hole" : "Create Hole"}
@@ -1056,12 +1239,12 @@ function App() {
             </div>
           </section>
 
-          <HoleMap
+          <InteractiveHoleMap
             hole={holeForm}
-            title="Live hole preview"
-            subtitle="The map updates immediately as you edit geometry, wind, and hazards."
-            startPosition={holeForm.tee}
-            targetPosition={holeForm.green_center}
+            tool={holeEditorTool}
+            selectedHazardIndex={selectedHazardIndex}
+            onChange={setHoleForm}
+            onSelectHazard={setSelectedHazardIndex}
           />
         </section>
       </div>
@@ -1109,7 +1292,7 @@ function App() {
           <p className="hero__kicker">Persistent full-stack golf decision engine</p>
           <h1>Sports Strategy Engine</h1>
           <p className="hero__subtitle">
-            Manage player profiles and holes, run tee-shot or custom-shot recommendations, and review saved strategy history from the local FastAPI and SQLite stack.
+            Design holes visually, manage player profiles, run tee-shot or custom-shot recommendations, and review saved strategy history from the local FastAPI and SQLite stack.
           </p>
         </div>
         <div className={`status ${healthStatus === "Backend online" ? "status--ok" : "status--warn"}`}>{healthStatus}</div>
