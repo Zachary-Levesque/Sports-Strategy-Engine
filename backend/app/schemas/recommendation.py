@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from backend.app.core.config import get_settings
+from backend.app.schemas.hole import WindSchema
 
 
 class AimPointSchema(BaseModel):
@@ -64,6 +65,7 @@ class RecommendationRequest(BaseModel):
     lie: Literal["tee", "fairway", "rough", "bunker", "recovery"] | None = None
     target_position: AimPointSchema | None = None
     risk_tolerance_override: Literal["low", "medium", "high"] | None = Field(default=None)
+    wind_override: WindSchema | None = None
 
 
 class RecommendationResponse(BaseModel):
