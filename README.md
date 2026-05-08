@@ -8,9 +8,9 @@ The application now supports:
 
 - seeded player, hole, and scenario data
 - player CRUD with club distance and dispersion editing
-- hole CRUD with hazard and wind editing
-- tee-shot and custom-shot recommendation generation through Monte Carlo simulation
-- live SVG hole previews in the hole editor and strategy view
+- visual hole generation from par and yardage, then hole CRUD through an interactive SVG course editor
+- tee-shot and map-driven custom-shot recommendation generation through Monte Carlo simulation
+- live SVG hole previews in the hole editor and strategy view with draggable course features
 - shot landing cloud visualization on recommendation results
 - persisted recommendation history
 - a React dashboard for running and reviewing strategy workflows
@@ -80,6 +80,20 @@ Frontend URL: `http://localhost:5173`
 3. Open `http://localhost:5173`
 4. Use the `Strategy`, `Players`, `Holes`, and `History` tabs
 
+## Visual Hole Designer
+
+In the `Holes` tab you can now:
+
+- generate a default hole from `par` and `yardage`
+- drag the green center and resize the green
+- drag the pin position
+- bend the fairway path with draggable control points
+- resize fairway and rough widths with map handles
+- add `bunker`, `water`, `OB`, and `recovery` hazards from the toolbar
+- drag, resize, relabel, and delete hazards visually
+
+The saved hole still uses the same `POST /holes` and `PUT /holes/{hole_id}` API flow, with backward-compatible optional geometry fields for `pin_position` and `fairway_path`.
+
 ## UI Glossary
 
 - `Distance dispersion`
@@ -92,7 +106,7 @@ Frontend URL: `http://localhost:5173`
 - `Tee shot`
   Starts every simulation from the hole tee and is the default mode.
 - `Approach / custom shot`
-  Lets you set a live ball position, lie, and target position so the engine can analyze a non-tee shot from the current location.
+  Lets you click a live ball position on the hole map, set a lie, and adjust the target if needed so the engine can analyze a non-tee shot from the current location.
 
 ## Database Setup
 
@@ -142,7 +156,8 @@ curl -X POST http://127.0.0.1:8000/recommendation \
     "ball_position": { "x": 4, "y": 155 },
     "lie": "fairway",
     "target_position": { "x": 0, "y": 355 },
-    "risk_tolerance_override": "medium"
+    "risk_tolerance_override": "medium",
+    "wind_override": { "speed_mph": 14, "direction_deg": 110 }
   }'
 ```
 
@@ -206,10 +221,12 @@ curl -X POST http://127.0.0.1:8000/recommendation \
 2. Start the frontend with `./scripts/run_frontend.sh`.
 3. Open `http://localhost:5173`.
 4. In `Players`, edit a club row and verify you can type, delete, paste, and tab through fields normally before saving.
-5. In `Holes`, change fairway or hazard values and confirm the live hole preview updates immediately.
-6. In `Strategy`, run a tee-shot recommendation and confirm the hole map renders the recommended aim line and landing cloud.
-7. Switch to `Approach / custom shot`, set a ball position and target position, rerun, and confirm the map updates from the new start point.
-8. Open `History`, refresh the page, and verify the saved recommendation remains present.
+5. In `Holes`, generate a new hole from par and yardage, then drag the green, pin, fairway handles, and hazards to confirm the live map updates immediately.
+6. Add a bunker or water hazard from the toolbar, resize it, and save the hole.
+7. In `Strategy`, run a tee-shot recommendation and confirm the hole map renders the recommended aim line and landing cloud.
+8. Switch to `Approach / custom shot`, click a ball position directly on the map, rerun, and confirm the map updates from the new start point.
+9. Change wind speed or direction in `Strategy`, rerun, and confirm the engine still returns a saved recommendation.
+10. Open `History`, refresh the page, and verify the saved recommendation remains present.
 
 ## Testing
 
