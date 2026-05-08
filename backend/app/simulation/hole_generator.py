@@ -46,15 +46,15 @@ class Hole:
     tee: Point
     green_center: Point
     green_radius: float
-    pin_position: Point | None = None
     fairway_center_x: float
     fairway_width: float
     fairway_start_y: float
     fairway_end_y: float
     rough_width: float
-    fairway_path: list[Point] | None = None
     hazards: list[Zone]
     wind: Wind
+    pin_position: Point | None = None
+    fairway_path: list[Point] | None = None
 
 
 def _zone_from_dict(item: dict[str, Any]) -> Zone:
