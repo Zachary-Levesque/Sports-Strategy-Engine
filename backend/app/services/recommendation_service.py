@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from statistics import mean
 import time
 from typing import NamedTuple
@@ -109,13 +110,15 @@ def _resolve_context(
         if payload.target_position is not None:
             target_position = Point(x=payload.target_position.x, y=payload.target_position.y)
         else:
-            target_position = Point(x=hole.green_center_x, y=hole.green_center_y)
+            default_target = hole.pin_position or hole.green_center
+            target_position = Point(x=default_target.x, y=default_target.y)
         return lie, start_position, target_position
 
+    default_target = hole.pin_position or hole.green_center
     return (
         "tee",
-        Point(x=hole.tee_x, y=hole.tee_y),
-        Point(x=hole.green_center_x, y=hole.green_center_y),
+        Point(x=hole.tee.x, y=hole.tee.y),
+        Point(x=default_target.x, y=default_target.y),
     )
 
 
@@ -184,15 +187,24 @@ def build_recommendation_response(
 
 def _compute(db: Session, payload: RecommendationRequest) -> RecommendationComputation:
     player = get_player_by_name(db, payload.player_name)
-    hole = get_hole_by_external_id(db, payload.hole_id)
+    hole_record = get_hole_by_external_id(db, payload.hole_id)
     resolved_player = player_to_domain(player, payload.risk_tolerance_override)
+    hole = hole_to_domain(hole_record)
+    if payload.wind_override is not None:
+        hole = replace(
+            hole,
+            wind=hole.wind.__class__(
+                speed_mph=payload.wind_override.speed_mph,
+                direction_deg=payload.wind_override.direction_deg,
+            ),
+        )
     lie, start_position, target_position = _resolve_context(payload, hole)
 
     started = time.perf_counter()
     try:
         result = rank_strategies(
             player=resolved_player,
-            hole=hole_to_domain(hole),
+            hole=hole,
             iterations=payload.iterations,
             risk_tolerance_override=payload.risk_tolerance_override,
             shot_mode=payload.shot_mode,
@@ -218,7 +230,7 @@ def _compute(db: Session, payload: RecommendationRequest) -> RecommendationCompu
                 payload=payload,
                 response=response,
                 player_id=player.id,
-                hole_id=hole.id,
+                hole_id=hole_record.id,
                 risk_tolerance_used=resolved_player.risk_tolerance,
                 duration_ms=duration_ms,
             )
