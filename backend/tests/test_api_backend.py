@@ -34,6 +34,8 @@ def test_hole_detail_endpoint():
     payload = response.json()
     assert payload["hole_id"] == first_hole_id
     assert "hazards" in payload
+    assert payload["tee"]["x"] == 0
+    assert payload["green_center"]["y"] > payload["tee"]["y"]
 
 
 def test_create_player_persists_to_database():
@@ -86,10 +88,33 @@ def test_simulate_endpoint_returns_saved_result_metadata():
     payload = response.json()
     assert payload["simulation_id"] is not None
     assert payload["ranked_strategy_count"] > len(payload["top_alternatives"])
+    assert len(payload["shot_samples"]) > 0
+    assert payload["start_position"]["y"] == 0.0
 
     with SessionLocal() as db:
         record = db.query(RecommendationORM).filter(RecommendationORM.id == payload["simulation_id"]).first()
         assert record is not None
+
+
+def test_simulate_endpoint_supports_custom_shot_mode():
+    response = client.post(
+        "/simulate",
+        json={
+            "player_name": "Zachary",
+            "hole_id": "harbor_par4",
+            "iterations": 300,
+            "shot_mode": "custom",
+            "ball_position": {"x": -6, "y": 140},
+            "lie": "rough",
+            "target_position": {"x": 3, "y": 330},
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["shot_mode"] == "custom"
+    assert payload["lie"] == "rough"
+    assert payload["start_position"] == {"x": -6.0, "y": 140.0}
+    assert payload["target_position"] == {"x": 3.0, "y": 330.0}
 
 
 def test_update_and_delete_player_flow():
