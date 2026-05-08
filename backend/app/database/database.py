@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from backend.app.core.config import get_settings
@@ -39,3 +39,26 @@ def init_database() -> None:
     from backend.app.models.orm import ClubORM, HoleORM, PlayerORM, RecommendationORM, ScenarioORM  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _migrate_holes_table()
+
+
+def _migrate_holes_table() -> None:
+    inspector = inspect(engine)
+    if "holes" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("holes")}
+    statements: list[str] = []
+    if "pin_x" not in columns:
+        statements.append("ALTER TABLE holes ADD COLUMN pin_x FLOAT")
+    if "pin_y" not in columns:
+        statements.append("ALTER TABLE holes ADD COLUMN pin_y FLOAT")
+    if "fairway_path_json" not in columns:
+        statements.append("ALTER TABLE holes ADD COLUMN fairway_path_json TEXT")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
