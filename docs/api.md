@@ -120,7 +120,8 @@ Notes:
 - `shot_mode` defaults to `"tee"` for backward compatibility.
 - In tee mode, the engine starts from the hole tee.
 - In custom mode, `ball_position` is required and the engine starts from that coordinate.
-- `target_position` is optional in custom mode. If omitted, the green center is used.
+- `target_position` is optional in custom mode. If omitted, the hole `pin_position` is used when present, otherwise the green center is used.
+- `wind_override` is optional and lets the strategy UI run the simulation with temporary wind settings without editing the saved hole.
 
 Response shape:
 
