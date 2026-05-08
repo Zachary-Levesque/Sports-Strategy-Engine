@@ -107,9 +107,20 @@ Request body:
   "player_name": "Zachary",
   "hole_id": "harbor_par4",
   "iterations": 2000,
+  "shot_mode": "custom",
+  "ball_position": {"x": 4, "y": 155},
+  "lie": "fairway",
+  "target_position": {"x": 0, "y": 355},
   "risk_tolerance_override": "medium"
 }
 ```
+
+Notes:
+
+- `shot_mode` defaults to `"tee"` for backward compatibility.
+- In tee mode, the engine starts from the hole tee.
+- In custom mode, `ball_position` is required and the engine starts from that coordinate.
+- `target_position` is optional in custom mode. If omitted, the green center is used.
 
 Response shape:
 
@@ -118,10 +129,14 @@ Response shape:
   "recommendation_id": 21,
   "player_name": "Zachary",
   "hole_id": "harbor_par4",
+  "shot_mode": "custom",
+  "start_position": {"x": 4.0, "y": 155.0},
+  "target_position": {"x": 0.0, "y": 355.0},
+  "lie": "fairway",
   "best_strategy": {
     "club": "4-Iron",
-    "aim_label": "left fairway",
-    "aim_point": {"x": -7.5, "y": 212.0},
+    "aim_label": "center target",
+    "aim_point": {"x": 0.0, "y": 355.0},
     "shot_shape": "draw",
     "swing_intensity": 1.0,
     "expected_strokes": 5.21,
@@ -155,6 +170,9 @@ Response shape:
     "x_range": [-40.3, 29.1],
     "y_range": [184.7, 242.5]
   },
+  "shot_samples": [
+    {"x": -1.4, "y": 348.2, "surface": "green", "total_strokes": 2.3}
+  ],
   "explanation": "4-Iron to left fairway is best because it produced the lowest risk-adjusted score."
 }
 ```
@@ -162,6 +180,8 @@ Response shape:
 ### `POST /simulate`
 
 Runs the same simulation pipeline but returns the broader ranked-strategy summary payload used for diagnostics.
+
+The response includes the same `shot_mode`, `start_position`, `target_position`, `lie`, and `shot_samples` fields as `POST /recommendation`.
 
 ### `GET /recommendations/history`
 

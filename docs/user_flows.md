@@ -15,15 +15,21 @@ This document describes the complete local workflows supported by the Sports Str
 1. Open the `Strategy` tab.
 2. Confirm the backend status indicator shows that the API is reachable.
 3. Choose a scenario, or pick a player and hole manually.
-4. Set the iteration count.
-5. Optionally set a risk tolerance override.
-6. Click `Run Recommendation`.
-7. Review:
+4. Choose `Tee shot` or `Approach / custom shot`.
+5. If using `Approach / custom shot`, enter:
+   - current lie
+   - ball X/Y
+   - target X/Y
+6. Set the iteration count.
+7. Optionally set a risk tolerance override.
+8. Click `Run Recommendation`.
+9. Review:
    - best strategy card
    - top alternatives table
    - probability breakdown
    - explanation
    - shot cloud summary metrics
+   - hole map with target line, recommended aim line, and landing cloud
 
 Successful behavior:
 - the run button disables while the request is in flight
@@ -42,6 +48,8 @@ Successful behavior:
    - miss tendency
    - risk tolerance
    - club carry, total distance, and dispersion values
+   - `Distance dispersion`: how much shot distance usually varies
+   - `Left/right dispersion`: how much the shot misses left or right
 4. Click `Save Player`.
 5. To remove a player, open it and click `Delete Player`.
 
@@ -70,6 +78,7 @@ Successful behavior:
 - saved holes remain after refresh
 - updated holes are available immediately in `Strategy`
 - deleted holes are removed from the list and no longer appear in scenarios
+- the live SVG hole preview updates immediately while geometry or hazard fields change
 
 ## Recommendation History Flow
 
