@@ -3,7 +3,6 @@ import type { MouseEvent, PointerEvent, WheelEvent } from "react";
 
 import type { AimPoint, HazardData, HolePayload } from "../types";
 import { createHazard, normalizeHole, syncLegacyFairwayFields } from "../lib/holeEditor";
-import { EditableCourseFeature } from "./EditableCourseFeature";
 import { HoleEditorTool, toolToHazardKind } from "./HoleEditorToolbar";
 import { fairwayPathForRender, fairwayPathSvg, getProjection } from "./holeMapGeometry";
 import { flagPath, hazardPath, organicBlobPath, teeBoxPath } from "./holeVisuals";
@@ -14,6 +13,7 @@ interface InteractiveHoleMapProps {
   tool: HoleEditorTool;
   selectedHazardIndex: number | null;
   fitViewSignal: number;
+  onBeginEdit: (hole: HolePayload) => void;
   onChange: (hole: HolePayload) => void;
   onSelectHazard: (index: number | null) => void;
 }
@@ -24,7 +24,6 @@ type DragState =
   | { kind: "move-pin" }
   | { kind: "move-tee" }
   | { kind: "move-fairway"; origin: AimPoint; path: AimPoint[] }
-  | { kind: "move-fairway-point"; index: number }
   | { kind: "resize-fairway-width" }
   | { kind: "resize-rough-width" }
   | { kind: "move-hazard"; index: number; origin: AimPoint; hazard: HazardData }
@@ -53,11 +52,65 @@ function clampPinToGreen(point: AimPoint, greenCenter: AimPoint, greenRadius: nu
   });
 }
 
+function fairwayCenterAtY(path: AimPoint[], y: number): number {
+  const sortedPath = [...path].sort((left, right) => left.y - right.y);
+  if (sortedPath.length === 0) {
+    return 0;
+  }
+  if (y <= sortedPath[0].y) {
+    return sortedPath[0].x;
+  }
+  if (y >= sortedPath[sortedPath.length - 1].y) {
+    return sortedPath[sortedPath.length - 1].x;
+  }
+  for (let index = 0; index < sortedPath.length - 1; index += 1) {
+    const current = sortedPath[index];
+    const next = sortedPath[index + 1];
+    if (y >= current.y && y <= next.y) {
+      const span = next.y - current.y || 1;
+      const ratio = (y - current.y) / span;
+      return Number((current.x + (next.x - current.x) * ratio).toFixed(1));
+    }
+  }
+  return sortedPath[Math.floor(sortedPath.length / 2)]?.x ?? 0;
+}
+
+function isNearGreenEdge(point: AimPoint, greenCenter: AimPoint, greenRadius: number): boolean {
+  const distance = Math.hypot(point.x - greenCenter.x, point.y - greenCenter.y);
+  return distance >= Math.max(5, greenRadius * 0.68);
+}
+
+function isNearHazardEdge(point: AimPoint, hazard: HazardData): boolean {
+  if (hazard.shape === "circle" && hazard.radius) {
+    const distance = Math.hypot(point.x - hazard.center_x, point.y - hazard.center_y);
+    return Math.abs(distance - hazard.radius) <= Math.max(4, hazard.radius * 0.35);
+  }
+
+  if (hazard.shape === "rectangle" && hazard.width && hazard.depth) {
+    const dx = Math.abs(point.x - hazard.center_x);
+    const dy = Math.abs(point.y - hazard.center_y);
+    const halfWidth = hazard.width / 2;
+    const halfDepth = hazard.depth / 2;
+    return dx >= halfWidth - 4 || dy >= halfDepth - 4;
+  }
+
+  if (hazard.shape === "corridor" && hazard.width && hazard.start_y != null && hazard.end_y != null) {
+    const dx = Math.abs(point.x - hazard.center_x);
+    const halfWidth = hazard.width / 2;
+    const topGap = Math.abs(point.y - hazard.start_y);
+    const bottomGap = Math.abs(point.y - hazard.end_y);
+    return dx >= halfWidth - 4 || topGap <= 6 || bottomGap <= 6;
+  }
+
+  return false;
+}
+
 export function InteractiveHoleMap({
   hole,
   tool,
   selectedHazardIndex,
   fitViewSignal,
+  onBeginEdit,
   onChange,
   onSelectHazard,
 }: InteractiveHoleMapProps) {
@@ -134,7 +187,11 @@ export function InteractiveHoleMap({
     setPan({ x: 0, y: 0 });
   }
 
-  function startDrag(pointerId: number, nextDragState: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>) {
+  function startDrag(
+    pointerId: number,
+    nextDragState: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>,
+  ) {
+    onBeginEdit(normalizedHole);
     setDragState(nextDragState);
     svgRef.current?.setPointerCapture(pointerId);
   }
@@ -159,59 +216,11 @@ export function InteractiveHoleMap({
     const hazardKind = toolToHazardKind(tool);
 
     if (hazardKind) {
+      onBeginEdit(normalizedHole);
       const hazards = [...normalizedHole.hazards, createHazard(hazardKind, point)];
       updateHole({ ...normalizedHole, hazards });
       onSelectHazard(hazards.length - 1);
       setSelectedFeature(null);
-      return;
-    }
-
-    if (tool === "place-pin") {
-      updateHole({
-        ...normalizedHole,
-        pin_position: clampPinToGreen(point, normalizedHole.green_center, normalizedHole.green_radius),
-      });
-      setSelectedFeature("pin");
-      return;
-    }
-
-    if (tool === "place-tee") {
-      updateHole({ ...normalizedHole, tee: point });
-      setSelectedFeature("tee");
-      return;
-    }
-
-    if (tool === "place-green") {
-      updateHole({
-        ...normalizedHole,
-        green_center: point,
-        pin_position: clampPinToGreen(point, point, normalizedHole.green_radius),
-      });
-      setSelectedFeature("green");
-      return;
-    }
-
-    if (tool === "place-fairway") {
-      const mid = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? { x: normalizedHole.fairway_center_x, y: (normalizedHole.fairway_start_y + normalizedHole.fairway_end_y) / 2 };
-      const dx = point.x - mid.x;
-      const dy = point.y - mid.y;
-      updateHole(
-        syncLegacyFairwayFields(
-          normalizedHole,
-          fairwayPath.map((pathPoint) => roundPoint({ x: pathPoint.x + dx, y: pathPoint.y + dy })),
-        ),
-      );
-      setSelectedFeature("fairway");
-      return;
-    }
-
-    if (tool === "place-rough") {
-      const mid = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? { x: normalizedHole.fairway_center_x, y: normalizedHole.fairway_start_y };
-      updateHole({
-        ...normalizedHole,
-        rough_width: Number(Math.max(6, Math.abs(point.x - mid.x) - normalizedHole.fairway_width / 2).toFixed(1)),
-      });
-      setSelectedFeature("rough");
       return;
     }
 
@@ -311,36 +320,15 @@ export function InteractiveHoleMap({
       setSelectedFeature("fairway");
       return;
     }
-    if (dragState.kind === "move-fairway-point") {
-      updateHole(
-        syncLegacyFairwayFields(
-          normalizedHole,
-          fairwayPath.map((pathPoint, index) =>
-            index === dragState.index
-              ? roundPoint({
-                  x: clamp(point.x, -140, 140),
-                  y: clamp(
-                    point.y,
-                    index === 0 ? 12 : fairwayPath[index - 1].y + 20,
-                    index === fairwayPath.length - 1 ? normalizedHole.yardage : fairwayPath[index + 1].y - 20,
-                  ),
-                })
-              : pathPoint,
-          ),
-        ),
-      );
-      setSelectedFeature("fairway");
-      return;
-    }
     if (dragState.kind === "resize-fairway-width") {
-      const mid = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? { x: normalizedHole.fairway_center_x, y: normalizedHole.fairway_start_y };
-      updateHole({ ...normalizedHole, fairway_width: Number(Math.max(12, Math.abs(point.x - mid.x) * 2).toFixed(1)) });
+      const centerX = fairwayCenterAtY(fairwayPath, point.y);
+      updateHole({ ...normalizedHole, fairway_width: Number(Math.max(12, Math.abs(point.x - centerX) * 2).toFixed(1)) });
       setSelectedFeature("fairway");
       return;
     }
     if (dragState.kind === "resize-rough-width") {
-      const mid = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? { x: normalizedHole.fairway_center_x, y: normalizedHole.fairway_start_y };
-      const totalHalf = Math.max(normalizedHole.fairway_width / 2 + 4, Math.abs(point.x - mid.x));
+      const centerX = fairwayCenterAtY(fairwayPath, point.y);
+      const totalHalf = Math.max(normalizedHole.fairway_width / 2 + 4, Math.abs(point.x - centerX));
       updateHole({ ...normalizedHole, rough_width: Number(Math.max(6, totalHalf - normalizedHole.fairway_width / 2).toFixed(1)) });
       setSelectedFeature("rough");
       return;
