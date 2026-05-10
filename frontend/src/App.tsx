@@ -380,6 +380,7 @@ function App() {
         await createHole(payload);
       }
       setHoleForm(payload);
+      setHoleUndoStack([]);
       await loadInitialData();
       setEditingHoleId(payload.hole_id);
       setSelectedHole(payload.hole_id);
