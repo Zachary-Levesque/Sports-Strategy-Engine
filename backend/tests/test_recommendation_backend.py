@@ -50,6 +50,7 @@ def test_custom_shot_recommendation_response_contains_visualization_points():
     assert payload["start_position"] == {"x": 4.0, "y": 155.0}
     assert payload["target_position"] == {"x": 0.0, "y": 355.0}
     assert payload["best_strategy"]["aim_point"]["y"] >= 155.0
+    assert payload["best_strategy"]["aim_point"]["y"] <= 369.5
     assert payload["shot_samples"][0]["surface"] in {
         "fairway",
         "rough",
