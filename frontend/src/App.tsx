@@ -1308,16 +1308,10 @@ function App() {
     <div className="app-shell">
       <header className="hero">
         <div>
-          <p className="hero__kicker">Persistent full-stack golf decision engine</p>
           <h1>Sports Strategy Engine</h1>
           <p className="hero__subtitle">
             Design holes visually, manage player profiles, run tee-shot or custom-shot recommendations, and review saved strategy history from the local FastAPI and SQLite stack.
           </p>
-          <div className="hero__stats">
-            <span className="hero-chip">{players.length} player profiles</span>
-            <span className="hero-chip">{holes.length} playable holes</span>
-            <span className="hero-chip">{history.length} saved recommendations</span>
-          </div>
         </div>
         <div className={`status ${healthStatus === "Backend online" ? "status--ok" : "status--warn"}`}>{healthStatus}</div>
       </header>
