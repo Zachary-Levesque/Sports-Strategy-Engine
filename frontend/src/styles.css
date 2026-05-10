@@ -1144,21 +1144,25 @@ body {
 
 .hole-map__selection-outline {
   fill: none;
-  stroke: rgba(17, 68, 44, 0.55);
-  stroke-width: 2.4;
-  stroke-dasharray: 7 7;
-}
-
-.hole-map__edge-grip {
-  stroke: rgba(26, 67, 45, 0.44);
+  stroke: #cf3b2e;
   stroke-width: 3;
-  stroke-linecap: round;
-  cursor: ew-resize;
+  cursor: nwse-resize;
 }
 
-.hole-map__edge-grip--active {
-  stroke: #15452d;
-  stroke-width: 4;
+.hole-map__selection-outline-circle,
+.hole-map__selection-outline-rect {
+  fill: none;
+  stroke: #cf3b2e;
+  stroke-width: 3;
+  cursor: nwse-resize;
+}
+
+.hole-map__move-handle {
+  fill: #fff8f2;
+  stroke: #cf3b2e;
+  stroke-width: 3;
+  cursor: grab;
+  filter: drop-shadow(0 3px 7px rgba(117, 28, 20, 0.24));
 }
 
 .editor-toolbar {
