@@ -18,6 +18,7 @@ class Recommendation:
 def generate_shot_options(
     player: PlayerProfile,
     hole: Hole,
+    shot_mode: str = "tee",
     start_position: Point | None = None,
     target_position: Point | None = None,
 ) -> list[ShotOption]:
@@ -26,25 +27,66 @@ def generate_shot_options(
     shapes = ["straight", "draw", "fade"]
     start = start_position or hole.tee
     target = target_position or hole.green_center
+    remaining_distance = max(0.0, target.y - start.y)
+    target_window = max(28.0, hole.green_radius * 2.4)
+    target_side_offset = max(4.0, min(10.0, hole.green_radius * 0.35))
     for club in player.clubs:
         for intensity in intensities:
             projected_carry = club.carry_yards * (0.55 + 0.45 * intensity)
             projected_landing_y = start.y + projected_carry
+            if shot_mode == "custom":
+                overshoot_tolerance = max(18.0, hole.green_radius * 0.8)
+                if projected_landing_y > target.y + overshoot_tolerance:
+                    continue
             fairway_y = min(
                 max(projected_landing_y, hole.fairway_start_y + 5.0),
                 hole.fairway_end_y - 5.0,
             )
-            targets = [
-                ("center fairway", hole.fairway_center_x, fairway_y),
-                ("left fairway", hole.fairway_center_x - hole.fairway_width * 0.22, fairway_y),
-                ("right fairway", hole.fairway_center_x + hole.fairway_width * 0.22, fairway_y),
-            ]
+            targets: list[tuple[str, float, float]]
 
-            if abs(projected_landing_y - target.y) <= max(35.0, hole.green_radius * 2.0):
-                targets.append(("center target", target.x, target.y))
-            front_target_y = target.y - hole.green_radius * 0.6
-            if abs(projected_landing_y - front_target_y) <= max(30.0, hole.green_radius * 2.0):
-                targets.append(("front target", target.x, front_target_y))
+            if shot_mode == "custom":
+                targets = []
+                if abs(projected_landing_y - target.y) <= target_window:
+                    targets.extend(
+                        [
+                            ("center target", target.x, target.y),
+                            ("left target", target.x - target_side_offset, target.y),
+                            ("right target", target.x + target_side_offset, target.y),
+                        ]
+                    )
+                    front_target_y = target.y - hole.green_radius * 0.6
+                    if projected_landing_y <= target.y + hole.green_radius:
+                        targets.append(("front target", target.x, front_target_y))
+                else:
+                    layup_y = min(projected_landing_y, target.y - max(18.0, hole.green_radius * 1.15))
+                    if layup_y > start.y + 10.0:
+                        targets.extend(
+                            [
+                                ("center layup", target.x, layup_y),
+                                ("safe layup", target.x - target_side_offset * 0.6, layup_y),
+                            ]
+                        )
+
+                if remaining_distance > 215.0 and projected_landing_y < target.y - 28.0:
+                    targets.extend(
+                        [
+                            ("center fairway", hole.fairway_center_x, fairway_y),
+                            ("left fairway", hole.fairway_center_x - hole.fairway_width * 0.18, fairway_y),
+                            ("right fairway", hole.fairway_center_x + hole.fairway_width * 0.18, fairway_y),
+                        ]
+                    )
+            else:
+                targets = [
+                    ("center fairway", hole.fairway_center_x, fairway_y),
+                    ("left fairway", hole.fairway_center_x - hole.fairway_width * 0.22, fairway_y),
+                    ("right fairway", hole.fairway_center_x + hole.fairway_width * 0.22, fairway_y),
+                ]
+
+                if abs(projected_landing_y - target.y) <= max(35.0, hole.green_radius * 2.0):
+                    targets.append(("center target", target.x, target.y))
+                front_target_y = target.y - hole.green_radius * 0.6
+                if abs(projected_landing_y - front_target_y) <= max(30.0, hole.green_radius * 2.0):
+                    targets.append(("front target", target.x, front_target_y))
 
             for aim_label, aim_x, aim_y in targets:
                 for shape in shapes:
@@ -94,6 +136,7 @@ def rank_strategies(
     options = generate_shot_options(
         player=player,
         hole=hole,
+        shot_mode=shot_mode,
         start_position=start_position,
         target_position=target_position,
     )
