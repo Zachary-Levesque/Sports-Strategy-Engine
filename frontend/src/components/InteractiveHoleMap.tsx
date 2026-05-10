@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent, PointerEvent, WheelEvent } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { MouseEvent, PointerEvent } from "react";
 
 import type { AimPoint, HazardData, HolePayload } from "../types";
 import { createHazard, normalizeHole, syncLegacyFairwayFields } from "../lib/holeEditor";
 import { HoleEditorTool, toolToHazardKind } from "./HoleEditorToolbar";
 import { fairwayPathForRender, fairwayPathSvg, getProjection } from "./holeMapGeometry";
 import { flagPath, hazardPath, organicBlobPath, teeBoxPath } from "./holeVisuals";
-import { MapViewportControls } from "./MapViewportControls";
 
 interface InteractiveHoleMapProps {
   hole: HolePayload;
   tool: HoleEditorTool;
   selectedHazardIndex: number | null;
-  fitViewSignal: number;
   onBeginEdit: (hole: HolePayload) => void;
   onChange: (hole: HolePayload) => void;
   onSelectHazard: (index: number | null) => void;
@@ -27,8 +25,7 @@ type DragState =
   | { kind: "resize-fairway-width" }
   | { kind: "resize-rough-width" }
   | { kind: "move-hazard"; index: number; origin: AimPoint; hazard: HazardData }
-  | { kind: "resize-hazard"; index: number; hazard: HazardData }
-  | { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number };
+  | { kind: "resize-hazard"; index: number; hazard: HazardData };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -109,7 +106,6 @@ export function InteractiveHoleMap({
   hole,
   tool,
   selectedHazardIndex,
-  fitViewSignal,
   onBeginEdit,
   onChange,
   onSelectHazard,
@@ -119,8 +115,6 @@ export function InteractiveHoleMap({
   const projection = useMemo(() => getProjection(normalizedHole), [normalizedHole]);
   const fairwayLine = fairwayPathSvg(fairwayPath, projection);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectedFeature, setSelectedFeature] = useState<"fairway" | "green" | "rough" | "pin" | "tee" | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
 
@@ -142,16 +136,11 @@ export function InteractiveHoleMap({
   );
   const teePath = teeBoxPath(normalizedHole.tee, projection);
 
-  useEffect(() => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }, [fitViewSignal, normalizedHole.hole_id, normalizedHole.yardage]);
-
   function updateHole(nextHole: HolePayload) {
     onChange(normalizeHole(nextHole));
   }
 
-  function getSvgPoint(event: MouseEvent<SVGSVGElement> | PointerEvent<SVGElement> | WheelEvent<SVGSVGElement>) {
+  function getSvgPoint(event: MouseEvent<SVGSVGElement> | PointerEvent<SVGElement>) {
     const svg = svgRef.current;
     if (!svg) {
       return { x: 0, y: 0 };
@@ -164,7 +153,7 @@ export function InteractiveHoleMap({
   }
 
   function toHolePoint(svgX: number, svgY: number): AimPoint {
-    return projection.toHolePoint((svgX - pan.x) / zoom, (svgY - pan.y) / zoom);
+    return projection.toHolePoint(svgX, svgY);
   }
 
   function holePointFromEvent(event: PointerEvent<SVGElement> | MouseEvent<SVGSVGElement>) {
@@ -172,31 +161,16 @@ export function InteractiveHoleMap({
     return roundPoint(toHolePoint(point.x, point.y));
   }
 
-  function zoomAround(factor: number, anchor?: { x: number; y: number }) {
-    const nextZoom = clamp(Number((zoom * factor).toFixed(3)), 1, 4.5);
-    const focal = anchor ?? { x: projection.width / 2, y: projection.height / 2 };
-    setPan((current) => ({
-      x: Number((focal.x - ((focal.x - current.x) / zoom) * nextZoom).toFixed(2)),
-      y: Number((focal.y - ((focal.y - current.y) / zoom) * nextZoom).toFixed(2)),
-    }));
-    setZoom(nextZoom);
-  }
-
-  function fitToScreen() {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }
-
   function startDrag(
     pointerId: number,
-    nextDragState: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>,
+    nextDragState: DragState,
   ) {
     onBeginEdit(normalizedHole);
     setDragState(nextDragState);
     svgRef.current?.setPointerCapture(pointerId);
   }
 
-  function startResizeOrMove(event: PointerEvent<SVGElement>, moveState: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>, resizeState?: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>) {
+  function startResizeOrMove(event: PointerEvent<SVGElement>, moveState: DragState, resizeState?: DragState) {
     event.stopPropagation();
     if (resizeState) {
       startDrag(event.pointerId, resizeState);
@@ -206,9 +180,6 @@ export function InteractiveHoleMap({
   }
 
   function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
-    if (dragState?.kind === "pan") {
-      return;
-    }
     const point = holePointFromEvent(event);
     const hazardKind = toolToHazardKind(tool);
 
@@ -225,38 +196,10 @@ export function InteractiveHoleMap({
     setSelectedFeature(null);
   }
 
-  function handleSvgPointerDown(event: PointerEvent<SVGSVGElement>) {
-    if (tool !== "pan") {
-      return;
-    }
-    const point = getSvgPoint(event);
-    setDragState({
-      kind: "pan",
-      pointerId: event.pointerId,
-      svgX: point.x,
-      svgY: point.y,
-      startPanX: pan.x,
-      startPanY: pan.y,
-    });
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     if (!dragState) {
       return;
     }
-    if (dragState.kind === "pan") {
-      if (dragState.pointerId !== event.pointerId) {
-        return;
-      }
-      const point = getSvgPoint(event);
-      setPan({
-        x: Number((dragState.startPanX + point.x - dragState.svgX).toFixed(2)),
-        y: Number((dragState.startPanY + point.y - dragState.svgY).toFixed(2)),
-      });
-      return;
-    }
-
     const point = holePointFromEvent(event);
     if (dragState.kind === "move-green") {
       const previousGreen = normalizedHole.green_center;
@@ -391,11 +334,6 @@ export function InteractiveHoleMap({
     setDragState(null);
   }
 
-  function handleWheel(event: WheelEvent<SVGSVGElement>) {
-    event.preventDefault();
-    zoomAround(event.deltaY < 0 ? 1.12 : 1 / 1.12, getSvgPoint(event));
-  }
-
   const midPoint = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? { x: normalizedHole.fairway_center_x, y: normalizedHole.fairway_start_y };
   const fairwayWidthHandle = { x: midPoint.x + normalizedHole.fairway_width / 2, y: midPoint.y };
   const roughWidthHandle = { x: midPoint.x + normalizedHole.fairway_width / 2 + normalizedHole.rough_width, y: midPoint.y };
@@ -412,32 +350,20 @@ export function InteractiveHoleMap({
           <p className="eyebrow">Designer</p>
           <h2>Interactive Hole Editor</h2>
           <p className="map-subtitle">
-            Drag any feature directly on the course. The center moves it, while the edge resizes it.
+            Drag inside a feature to move it. Drag its border to resize it.
           </p>
         </div>
       </div>
 
-      <MapViewportControls
-        zoomLabel={`${Math.round(zoom * 100)}%`}
-        panEnabled={tool === "pan"}
-        onTogglePan={undefined}
-        onZoomIn={() => zoomAround(1.2)}
-        onZoomOut={() => zoomAround(1 / 1.2)}
-        onFit={fitToScreen}
-        onReset={fitToScreen}
-      />
-
       <div className="hole-map-stage hole-map-stage--editor">
         <svg
           ref={svgRef}
-          className={`hole-map hole-map--interactive ${tool === "pan" ? "hole-map--pannable" : ""}`}
+          className="hole-map hole-map--interactive"
           viewBox={`0 0 ${projection.width} ${projection.height}`}
           onClick={handleCanvasClick}
-          onPointerDown={handleSvgPointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
-          onWheel={handleWheel}
         >
           <defs>
             <linearGradient id="courseBase" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -454,7 +380,7 @@ export function InteractiveHoleMap({
             </linearGradient>
           </defs>
           <rect x="0" y="0" width={projection.width} height={projection.height} rx="22" className="hole-map__base" />
-          <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+          <g>
             <path
               d={fairwayLine}
               className={`hole-map__rough-path ${roughSelected ? "hole-map__path--selected" : ""}`}
