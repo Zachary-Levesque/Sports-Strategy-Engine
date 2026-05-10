@@ -182,7 +182,6 @@ function App() {
   const [editingHoleId, setEditingHoleId] = useState<string | null>(null);
   const [holeEditorTool, setHoleEditorTool] = useState<HoleEditorTool>("select");
   const [selectedHazardIndex, setSelectedHazardIndex] = useState<number | null>(null);
-  const [holeEditorFitSignal, setHoleEditorFitSignal] = useState(0);
   const [holeGenerationShape, setHoleGenerationShape] = useState<HoleLayoutShape>("straight");
 
   useEffect(() => {
@@ -1055,7 +1054,6 @@ function App() {
               rememberHoleVersion(holeForm);
               setHoleForm(normalizeHole(nextHole));
               setSelectedHazardIndex(null);
-              setHoleEditorFitSignal((current) => current + 1);
             }}
             onShapeChange={setHoleGenerationShape}
             onUpdateMeta={(nextHole) => applyHoleDesignerChange(nextHole)}
@@ -1075,17 +1073,15 @@ function App() {
               onToolChange={setHoleEditorTool}
               onUndoLast={undoHoleEdit}
               onDeleteSelected={deleteSelectedHazard}
-              onFitToScreen={() => setHoleEditorFitSignal((current) => current + 1)}
             />
             <div className="helper-callout">
               <strong>How to edit</strong>
               <span>
-                Drag the middle of a feature to move it. Drag near an edge to resize it. Use the add buttons only for creating new hazards, then edit everything directly on the map.
+                Drag inside any feature to move it. Drag on its border to resize it. Add buttons are only for creating new hazards.
               </span>
             </div>
             <div className="editor-selection-grid">
               <span className={`selection-chip ${holeEditorTool === "select" ? "selection-chip--active" : ""}`}>Direct edit</span>
-              <span className={`selection-chip ${holeEditorTool === "pan" ? "selection-chip--active" : ""}`}>Pan</span>
               <span className={`selection-chip ${selectedHazard ? "selection-chip--active" : ""}`}>{selectedHazard ? `Selected: ${selectedHazard.kind}` : "No hazard selected"}</span>
             </div>
 
@@ -1211,7 +1207,6 @@ function App() {
             hole={holeForm}
             tool={holeEditorTool}
             selectedHazardIndex={selectedHazardIndex}
-            fitViewSignal={holeEditorFitSignal}
             onBeginEdit={rememberHoleVersion}
             onChange={applyHoleDesignerChange}
             onSelectHazard={setSelectedHazardIndex}
