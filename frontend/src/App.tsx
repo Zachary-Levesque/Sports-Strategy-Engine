@@ -178,6 +178,7 @@ function App() {
   const [editingPlayerName, setEditingPlayerName] = useState<string | null>(null);
 
   const [holeForm, setHoleForm] = useState<HolePayload>(emptyHole());
+  const [holeUndoStack, setHoleUndoStack] = useState<HolePayload[]>([]);
   const [editingHoleId, setEditingHoleId] = useState<string | null>(null);
   const [holeEditorTool, setHoleEditorTool] = useState<HoleEditorTool>("select");
   const [selectedHazardIndex, setSelectedHazardIndex] = useState<number | null>(null);
@@ -286,6 +287,7 @@ function App() {
   async function loadHoleIntoForm(holeId: string) {
     const detail = normalizeHole(await getHole(holeId));
     setHoleForm(detail);
+    setHoleUndoStack([]);
     setEditingHoleId(holeId);
     setSelectedHazardIndex(null);
     setHoleEditorTool("select");
@@ -304,6 +306,7 @@ function App() {
 
   function resetHoleForm() {
     setHoleForm(emptyHole());
+    setHoleUndoStack([]);
     setEditingHoleId(null);
     setSelectedHazardIndex(null);
     setHoleEditorTool("select");
@@ -441,10 +444,12 @@ function App() {
   }
 
   function updateHoleField<K extends keyof HolePayload>(key: K, value: HolePayload[K]) {
+    rememberHoleVersion(holeForm);
     setHoleForm((current) => normalizeHole({ ...current, [key]: value }));
   }
 
   function updateHazard(index: number, key: keyof HazardData, value: string) {
+    rememberHoleVersion(holeForm);
     setHoleForm((current) => {
       const hazards = [...current.hazards];
       hazards[index] = {
@@ -464,6 +469,7 @@ function App() {
     if (selectedHazardIndex == null) {
       return;
     }
+    rememberHoleVersion(holeForm);
     setHoleForm((current) =>
       normalizeHole({
         ...current,
@@ -471,6 +477,35 @@ function App() {
       }),
     );
     setSelectedHazardIndex(null);
+  }
+
+  function rememberHoleVersion(snapshot: HolePayload) {
+    const normalized = normalizeHole(snapshot);
+    setHoleUndoStack((current) => {
+      const last = current[current.length - 1];
+      if (last && JSON.stringify(last) === JSON.stringify(normalized)) {
+        return current;
+      }
+      return [...current.slice(-24), normalized];
+    });
+  }
+
+  function applyHoleDesignerChange(nextHole: HolePayload) {
+    setHoleForm(normalizeHole(nextHole));
+  }
+
+  function undoHoleEdit() {
+    setHoleUndoStack((current) => {
+      const previous = current[current.length - 1];
+      if (!previous) {
+        return current;
+      }
+      setHoleForm(previous);
+      return current.slice(0, -1);
+    });
+    setSelectedHazardIndex(null);
+    setHoleEditorTool("select");
+    setNotice("Reverted the last course edit.");
   }
 
   function handleStrategyMapClick(point: AimPoint) {
@@ -1016,12 +1051,13 @@ function App() {
             isEditing={editingHoleId != null}
             shape={holeGenerationShape}
             onGenerate={(nextHole) => {
+              rememberHoleVersion(holeForm);
               setHoleForm(normalizeHole(nextHole));
               setSelectedHazardIndex(null);
               setHoleEditorFitSignal((current) => current + 1);
             }}
             onShapeChange={setHoleGenerationShape}
-            onUpdateMeta={(nextHole) => setHoleForm(normalizeHole(nextHole))}
+            onUpdateMeta={(nextHole) => applyHoleDesignerChange(nextHole)}
           />
 
           <section className="card">
@@ -1033,16 +1069,23 @@ function App() {
             </div>
             <HoleEditorToolbar
               activeTool={holeEditorTool}
+              canUndo={holeUndoStack.length > 0}
               selectedHazardIndex={selectedHazardIndex}
               onToolChange={setHoleEditorTool}
+              onUndoLast={undoHoleEdit}
               onDeleteSelected={deleteSelectedHazard}
               onFitToScreen={() => setHoleEditorFitSignal((current) => current + 1)}
             />
             <div className="helper-callout">
               <strong>How to edit</strong>
               <span>
-                Use `Select / Drag` to move features, `Resize` to stretch edges or widths, and the component buttons to place new course elements directly on the map.
+                Drag the middle of a feature to move it. Drag near an edge to resize it. Use the add buttons only for creating new hazards, then edit everything directly on the map.
               </span>
+            </div>
+            <div className="editor-selection-grid">
+              <span className={`selection-chip ${holeEditorTool === "select" ? "selection-chip--active" : ""}`}>Direct edit</span>
+              <span className={`selection-chip ${holeEditorTool === "pan" ? "selection-chip--active" : ""}`}>Pan</span>
+              <span className={`selection-chip ${selectedHazard ? "selection-chip--active" : ""}`}>{selectedHazard ? `Selected: ${selectedHazard.kind}` : "No hazard selected"}</span>
             </div>
 
             {selectedHazard ? (
@@ -1168,7 +1211,8 @@ function App() {
             tool={holeEditorTool}
             selectedHazardIndex={selectedHazardIndex}
             fitViewSignal={holeEditorFitSignal}
-            onChange={setHoleForm}
+            onBeginEdit={rememberHoleVersion}
+            onChange={applyHoleDesignerChange}
             onSelectHazard={setSelectedHazardIndex}
           />
 
@@ -1273,6 +1317,11 @@ function App() {
           <p className="hero__subtitle">
             Design holes visually, manage player profiles, run tee-shot or custom-shot recommendations, and review saved strategy history from the local FastAPI and SQLite stack.
           </p>
+          <div className="hero__stats">
+            <span className="hero-chip">{players.length} player profiles</span>
+            <span className="hero-chip">{holes.length} playable holes</span>
+            <span className="hero-chip">{history.length} saved recommendations</span>
+          </div>
         </div>
         <div className={`status ${healthStatus === "Backend online" ? "status--ok" : "status--warn"}`}>{healthStatus}</div>
       </header>
