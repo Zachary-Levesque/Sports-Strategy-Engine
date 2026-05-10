@@ -2,7 +2,6 @@ import type { HazardKind } from "../types";
 
 export type HoleEditorTool =
   | "select"
-  | "pan"
   | "place-bunker"
   | "place-water"
   | "place-ob"
@@ -15,12 +14,10 @@ interface HoleEditorToolbarProps {
   onToolChange: (tool: HoleEditorTool) => void;
   onUndoLast: () => void;
   onDeleteSelected: () => void;
-  onFitToScreen: () => void;
 }
 
 const PRIMARY_TOOLS: Array<{ tool: HoleEditorTool; label: string }> = [
   { tool: "select", label: "Edit course" },
-  { tool: "pan", label: "Pan view" },
 ];
 
 const HAZARD_TOOLS: Array<{ tool: HoleEditorTool; label: string }> = [
@@ -53,7 +50,6 @@ export function HoleEditorToolbar({
   onToolChange,
   onUndoLast,
   onDeleteSelected,
-  onFitToScreen,
 }: HoleEditorToolbarProps) {
   return (
     <div className="editor-toolbar">
@@ -95,9 +91,6 @@ export function HoleEditorToolbar({
         </button>
         <button type="button" className="danger-button" onClick={onDeleteSelected} disabled={selectedHazardIndex == null}>
           Delete selected
-        </button>
-        <button type="button" className="secondary-button" onClick={onFitToScreen}>
-          Fit to screen
         </button>
       </div>
     </div>
