@@ -479,11 +479,15 @@ export function InteractiveHoleMap({
                 setSelectedFeature("rough");
               }}
               onPointerDown={(event) =>
-                startResizeOrMove(
-                  event,
-                  { kind: "move-fairway", origin: holePointFromEvent(event), path: fairwayPath },
-                  { kind: "resize-rough-width" },
-                )
+                startResizeOrMove(event, { kind: "move-fairway", origin: holePointFromEvent(event), path: fairwayPath }, {
+                  kind:
+                    Math.abs(
+                      holePointFromEvent(event).x - fairwayCenterAtY(fairwayPath, holePointFromEvent(event).y),
+                    ) >=
+                    normalizedHole.fairway_width / 2 + normalizedHole.rough_width * 0.45
+                      ? "resize-rough-width"
+                      : "move-fairway",
+                } as DragState)
               }
             />
             <path d={fairwayLine} className="hole-map__fairway-shadow" strokeWidth={normalizedHole.fairway_width + 5} />
@@ -496,14 +500,34 @@ export function InteractiveHoleMap({
                 setSelectedFeature("fairway");
               }}
               onPointerDown={(event) =>
-                startResizeOrMove(
-                  event,
-                  { kind: "move-fairway", origin: holePointFromEvent(event), path: fairwayPath },
-                  { kind: "resize-fairway-width" },
-                )
+                startResizeOrMove(event, { kind: "move-fairway", origin: holePointFromEvent(event), path: fairwayPath }, {
+                  kind:
+                    Math.abs(
+                      holePointFromEvent(event).x - fairwayCenterAtY(fairwayPath, holePointFromEvent(event).y),
+                    ) >=
+                    normalizedHole.fairway_width / 2 - 4
+                      ? "resize-fairway-width"
+                      : "move-fairway",
+                } as DragState)
               }
             />
             <path d={fairwayLine} className="hole-map__fairway-centerline" strokeWidth={1.6} />
+            <line
+              x1={projection.toSvgX(fairwayWidthHandle.x)}
+              y1={projection.toSvgY(fairwayWidthHandle.y + 10)}
+              x2={projection.toSvgX(fairwayWidthHandle.x)}
+              y2={projection.toSvgY(fairwayWidthHandle.y - 10)}
+              className={`hole-map__edge-grip ${fairwaySelected ? "hole-map__edge-grip--active" : ""}`}
+              onPointerDown={(event) => startDrag(event.pointerId, { kind: "resize-fairway-width" })}
+            />
+            <line
+              x1={projection.toSvgX(roughWidthHandle.x)}
+              y1={projection.toSvgY(roughWidthHandle.y + 10)}
+              x2={projection.toSvgX(roughWidthHandle.x)}
+              y2={projection.toSvgY(roughWidthHandle.y - 10)}
+              className={`hole-map__edge-grip ${roughSelected ? "hole-map__edge-grip--active" : ""}`}
+              onPointerDown={(event) => startDrag(event.pointerId, { kind: "resize-rough-width" })}
+            />
 
             <path
               d={greenPath}
@@ -514,10 +538,17 @@ export function InteractiveHoleMap({
                 onSelectHazard(null);
               }}
               onPointerDown={(event) =>
-                startResizeOrMove(event, { kind: "move-green" }, { kind: "resize-green" })
+                startResizeOrMove(
+                  event,
+                  { kind: "move-green" },
+                  isNearGreenEdge(holePointFromEvent(event), normalizedHole.green_center, normalizedHole.green_radius)
+                    ? { kind: "resize-green" }
+                    : undefined,
+                )
               }
             />
             <path d={greenInnerPath} className="hole-map__green-inner" />
+            {greenSelected ? <path d={greenPath} className="hole-map__selection-outline" /> : null}
 
             <path
               d={teePath}
@@ -540,14 +571,12 @@ export function InteractiveHoleMap({
                 setSelectedFeature(null);
               };
               const commonPointerDown = (event: PointerEvent<SVGElement>) => {
-                if (tool === "delete" && maybeDeleteHazard(index)) {
-                  event.stopPropagation();
-                  return;
-                }
                 startResizeOrMove(
                   event,
                   { kind: "move-hazard", index, origin: holePointFromEvent(event), hazard },
-                  { kind: "resize-hazard", index, hazard },
+                  isNearHazardEdge(holePointFromEvent(event), hazard)
+                    ? { kind: "resize-hazard", index, hazard }
+                    : undefined,
                 );
               };
               if (organicPath) {
@@ -604,38 +633,6 @@ export function InteractiveHoleMap({
                 setSelectedFeature("pin");
               }}
               onPointerDown={(event) => startResizeOrMove(event, { kind: "move-pin" })}
-            />
-
-            {fairwayPath.map((pathPoint, index) => (
-              <EditableCourseFeature
-                key={`fairway-${index}`}
-                x={projection.toSvgX(pathPoint.x)}
-                y={projection.toSvgY(pathPoint.y)}
-                label={index === 0 ? "Start" : index === fairwayPath.length - 1 ? "End" : "Bend"}
-                selected={fairwaySelected}
-                onPointerDown={(pointerId) => startDrag(pointerId, { kind: "move-fairway-point", index })}
-              />
-            ))}
-            <EditableCourseFeature
-              x={projection.toSvgX(fairwayWidthHandle.x)}
-              y={projection.toSvgY(fairwayWidthHandle.y)}
-              label="Fairway"
-              selected={fairwaySelected}
-              onPointerDown={(pointerId) => startDrag(pointerId, { kind: "resize-fairway-width" })}
-            />
-            <EditableCourseFeature
-              x={projection.toSvgX(roughWidthHandle.x)}
-              y={projection.toSvgY(roughWidthHandle.y)}
-              label="Rough"
-              selected={roughSelected}
-              onPointerDown={(pointerId) => startDrag(pointerId, { kind: "resize-rough-width" })}
-            />
-            <EditableCourseFeature
-              x={projection.toSvgX(normalizedHole.green_center.x + normalizedHole.green_radius)}
-              y={projection.toSvgY(normalizedHole.green_center.y)}
-              label="Green size"
-              selected={greenSelected}
-              onPointerDown={(pointerId) => startDrag(pointerId, { kind: "resize-green" })}
             />
           </g>
         </svg>
