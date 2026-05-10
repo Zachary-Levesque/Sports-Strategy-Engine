@@ -3,40 +3,31 @@ import type { HazardKind } from "../types";
 export type HoleEditorTool =
   | "select"
   | "pan"
-  | "resize"
-  | "delete"
-  | "place-fairway"
-  | "place-green"
-  | "place-rough"
   | "place-bunker"
   | "place-water"
   | "place-ob"
-  | "place-recovery"
-  | "place-pin"
-  | "place-tee";
+  | "place-recovery";
 
 interface HoleEditorToolbarProps {
   activeTool: HoleEditorTool;
+  canUndo: boolean;
   selectedHazardIndex: number | null;
   onToolChange: (tool: HoleEditorTool) => void;
+  onUndoLast: () => void;
   onDeleteSelected: () => void;
   onFitToScreen: () => void;
 }
 
-const TOOL_LABELS: Array<{ tool: HoleEditorTool; label: string }> = [
-  { tool: "select", label: "Select / Drag" },
-  { tool: "resize", label: "Resize" },
-  { tool: "pan", label: "Pan" },
-  { tool: "delete", label: "Delete mode" },
-  { tool: "place-fairway", label: "Fairway" },
-  { tool: "place-green", label: "Green" },
-  { tool: "place-rough", label: "Rough" },
-  { tool: "place-bunker", label: "Bunker" },
-  { tool: "place-water", label: "Water" },
-  { tool: "place-ob", label: "OB" },
-  { tool: "place-recovery", label: "Recovery" },
-  { tool: "place-pin", label: "Pin" },
-  { tool: "place-tee", label: "Tee" },
+const PRIMARY_TOOLS: Array<{ tool: HoleEditorTool; label: string }> = [
+  { tool: "select", label: "Edit course" },
+  { tool: "pan", label: "Pan view" },
+];
+
+const HAZARD_TOOLS: Array<{ tool: HoleEditorTool; label: string }> = [
+  { tool: "place-bunker", label: "Add bunker" },
+  { tool: "place-water", label: "Add water" },
+  { tool: "place-ob", label: "Add OB" },
+  { tool: "place-recovery", label: "Add recovery" },
 ];
 
 export function toolToHazardKind(tool: HoleEditorTool): HazardKind | null {
@@ -57,38 +48,58 @@ export function toolToHazardKind(tool: HoleEditorTool): HazardKind | null {
 
 export function HoleEditorToolbar({
   activeTool,
+  canUndo,
   selectedHazardIndex,
   onToolChange,
+  onUndoLast,
   onDeleteSelected,
   onFitToScreen,
 }: HoleEditorToolbarProps) {
   return (
     <div className="editor-toolbar">
-      {TOOL_LABELS.map((item) => (
-        <button
-          key={item.tool}
-          type="button"
-          className={`tab-button ${activeTool === item.tool ? "tab-button--active" : ""}`}
-          onClick={() => onToolChange(item.tool)}
-        >
-          {item.label}
+      <div className="editor-toolbar__section">
+        <span className="editor-toolbar__label">Mode</span>
+        <div className="editor-toolbar__group">
+          {PRIMARY_TOOLS.map((item) => (
+            <button
+              key={item.tool}
+              type="button"
+              className={`tab-button ${activeTool === item.tool ? "tab-button--active" : ""}`}
+              onClick={() => onToolChange(item.tool)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="editor-toolbar__section">
+        <span className="editor-toolbar__label">Add hazards</span>
+        <div className="editor-toolbar__group">
+          {HAZARD_TOOLS.map((item) => (
+            <button
+              key={item.tool}
+              type="button"
+              className={`tab-button ${activeTool === item.tool ? "tab-button--active" : ""}`}
+              onClick={() => onToolChange(item.tool)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="editor-toolbar__section editor-toolbar__section--actions">
+        <button type="button" className="secondary-button" onClick={onUndoLast} disabled={!canUndo}>
+          Cancel last change
         </button>
-      ))}
-      <button
-        type="button"
-        className="danger-button"
-        onClick={onDeleteSelected}
-        disabled={selectedHazardIndex == null}
-      >
-        Delete selected
-      </button>
-      <button
-        type="button"
-        className="secondary-button"
-        onClick={onFitToScreen}
-      >
-        Fit to screen
-      </button>
+        <button type="button" className="danger-button" onClick={onDeleteSelected} disabled={selectedHazardIndex == null}>
+          Delete selected
+        </button>
+        <button type="button" className="secondary-button" onClick={onFitToScreen}>
+          Fit to screen
+        </button>
+      </div>
     </div>
   );
 }
