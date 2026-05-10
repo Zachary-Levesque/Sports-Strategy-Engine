@@ -167,7 +167,7 @@ export function InteractiveHoleMap({
       const hazards = [...normalizedHole.hazards, createHazard(hazardKind, point)];
       updateHole({ ...normalizedHole, hazards });
       onSelectHazard(hazards.length - 1);
-      setSelectedFeature(null);
+      setSelectedEntity({ kind: "hazard", index: hazards.length - 1 });
       return;
     }
 
@@ -326,6 +326,7 @@ export function InteractiveHoleMap({
       ? normalizedHole.hazards[selectedEntity.index]
       : null;
   const selectedHazardCenter = selectedHazard ? hazardCenter(selectedHazard) : null;
+  const selectedHazardIndexValue = selectedEntity?.kind === "hazard" ? selectedEntity.index : null;
 
   return (
     <section className="card map-card">
@@ -598,7 +599,7 @@ export function InteractiveHoleMap({
                       event.stopPropagation();
                       startDrag(event.pointerId, {
                         kind: "resize-hazard",
-                        index: selectedEntity!.kind === "hazard" ? selectedEntity.index : 0,
+                        index: selectedHazardIndexValue ?? 0,
                         hazard: selectedHazard,
                       });
                     }}
@@ -615,7 +616,7 @@ export function InteractiveHoleMap({
                       event.stopPropagation();
                       startDrag(event.pointerId, {
                         kind: "resize-hazard",
-                        index: selectedEntity!.kind === "hazard" ? selectedEntity.index : 0,
+                        index: selectedHazardIndexValue ?? 0,
                         hazard: selectedHazard,
                       });
                     }}
@@ -630,7 +631,7 @@ export function InteractiveHoleMap({
                     event.stopPropagation();
                     startDrag(event.pointerId, {
                       kind: "move-hazard",
-                      index: selectedEntity!.kind === "hazard" ? selectedEntity.index : 0,
+                      index: selectedHazardIndexValue ?? 0,
                       origin: selectedHazardCenter,
                       hazard: selectedHazard,
                     });
