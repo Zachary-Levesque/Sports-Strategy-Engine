@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from backend.app.database.database import Base
 from backend.app.schemas.player import ClubCreate
 from backend.app.services.scenario_service import load_scenarios
+from backend.app.simulation.decision_engine import generate_shot_options
 from backend.app.simulation.hole_generator import Hole, Point, Wind, generate_hole
 from backend.app.simulation.monte_carlo import simulate_strategy
 from backend.app.simulation.player_model import Club, PlayerProfile, ShotOption, build_shot_distribution, load_player_profiles
@@ -142,3 +143,34 @@ def test_probability_mass_sums_to_one_for_narrow_fairway():
         + result.metrics.recovery_probability
     )
     assert total == pytest.approx(1.0)
+
+
+def test_custom_shot_options_do_not_include_large_overshoots():
+    player = PlayerProfile(
+        player_name="Approach",
+        handicap=4,
+        handedness="right",
+        preferred_shape="straight",
+        miss_tendency="center",
+        risk_tolerance="medium",
+        clubs=[
+            Club("3-Wood", 242, 258, 18, 14, 0.79),
+            Club("6-Iron", 185, 191, 10, 8, 0.87),
+            Club("8-Iron", 158, 163, 8, 7, 0.9),
+        ],
+    )
+    hole = _edge_hole()
+    start = Point(0.0, 155.0)
+    target = Point(0.0, 330.0)
+
+    options = generate_shot_options(
+        player=player,
+        hole=hole,
+        shot_mode="custom",
+        start_position=start,
+        target_position=target,
+    )
+
+    assert options
+    assert all(option.aim_y <= target.y + 18.0 for option in options)
+    assert any(option.club == "6-Iron" and "target" in option.aim_label for option in options)
