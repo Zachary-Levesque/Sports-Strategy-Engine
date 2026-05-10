@@ -27,6 +27,14 @@ type DragState =
   | { kind: "move-hazard"; index: number; origin: AimPoint; hazard: HazardData }
   | { kind: "resize-hazard"; index: number; hazard: HazardData };
 
+type SelectedEntity =
+  | { kind: "green" }
+  | { kind: "fairway" }
+  | { kind: "rough" }
+  | { kind: "tee" }
+  | { kind: "pin" }
+  | { kind: "hazard"; index: number };
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -72,34 +80,14 @@ function fairwayCenterAtY(path: AimPoint[], y: number): number {
   return sortedPath[Math.floor(sortedPath.length / 2)]?.x ?? 0;
 }
 
-function isNearGreenEdge(point: AimPoint, greenCenter: AimPoint, greenRadius: number): boolean {
-  const distance = Math.hypot(point.x - greenCenter.x, point.y - greenCenter.y);
-  return distance >= Math.max(5, greenRadius * 0.68);
-}
-
-function isNearHazardEdge(point: AimPoint, hazard: HazardData): boolean {
-  if (hazard.shape === "circle" && hazard.radius) {
-    const distance = Math.hypot(point.x - hazard.center_x, point.y - hazard.center_y);
-    return Math.abs(distance - hazard.radius) <= Math.max(4, hazard.radius * 0.35);
+function hazardCenter(hazard: HazardData): AimPoint {
+  if (hazard.shape === "corridor" && hazard.start_y != null && hazard.end_y != null) {
+    return {
+      x: hazard.center_x,
+      y: Number(((hazard.start_y + hazard.end_y) / 2).toFixed(1)),
+    };
   }
-
-  if (hazard.shape === "rectangle" && hazard.width && hazard.depth) {
-    const dx = Math.abs(point.x - hazard.center_x);
-    const dy = Math.abs(point.y - hazard.center_y);
-    const halfWidth = hazard.width / 2;
-    const halfDepth = hazard.depth / 2;
-    return dx >= halfWidth - 4 || dy >= halfDepth - 4;
-  }
-
-  if (hazard.shape === "corridor" && hazard.width && hazard.start_y != null && hazard.end_y != null) {
-    const dx = Math.abs(point.x - hazard.center_x);
-    const halfWidth = hazard.width / 2;
-    const topGap = Math.abs(point.y - hazard.start_y);
-    const bottomGap = Math.abs(point.y - hazard.end_y);
-    return dx >= halfWidth - 4 || topGap <= 6 || bottomGap <= 6;
-  }
-
-  return false;
+  return { x: hazard.center_x, y: hazard.center_y };
 }
 
 export function InteractiveHoleMap({
@@ -115,7 +103,7 @@ export function InteractiveHoleMap({
   const projection = useMemo(() => getProjection(normalizedHole), [normalizedHole]);
   const fairwayLine = fairwayPathSvg(fairwayPath, projection);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [selectedFeature, setSelectedFeature] = useState<"fairway" | "green" | "rough" | "pin" | "tee" | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   const pin = normalizedHole.pin_position ?? normalizedHole.green_center;
@@ -170,15 +158,6 @@ export function InteractiveHoleMap({
     svgRef.current?.setPointerCapture(pointerId);
   }
 
-  function startResizeOrMove(event: PointerEvent<SVGElement>, moveState: DragState, resizeState?: DragState) {
-    event.stopPropagation();
-    if (resizeState) {
-      startDrag(event.pointerId, resizeState);
-      return;
-    }
-    startDrag(event.pointerId, moveState);
-  }
-
   function handleCanvasClick(event: MouseEvent<SVGSVGElement>) {
     const point = holePointFromEvent(event);
     const hazardKind = toolToHazardKind(tool);
@@ -193,7 +172,7 @@ export function InteractiveHoleMap({
     }
 
     onSelectHazard(null);
-    setSelectedFeature(null);
+    setSelectedEntity(null);
   }
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -213,7 +192,7 @@ export function InteractiveHoleMap({
         green_center: point,
         pin_position: clampPinToGreen(movedPin, point, normalizedHole.green_radius),
       });
-      setSelectedFeature("green");
+      setSelectedEntity({ kind: "green" });
       return;
     }
     if (dragState.kind === "resize-green") {
@@ -223,7 +202,7 @@ export function InteractiveHoleMap({
         green_radius: radius,
         pin_position: clampPinToGreen(pin, normalizedHole.green_center, radius),
       });
-      setSelectedFeature("green");
+      setSelectedEntity({ kind: "green" });
       return;
     }
     if (dragState.kind === "move-pin") {
@@ -231,12 +210,12 @@ export function InteractiveHoleMap({
         ...normalizedHole,
         pin_position: clampPinToGreen(point, normalizedHole.green_center, normalizedHole.green_radius),
       });
-      setSelectedFeature("pin");
+      setSelectedEntity({ kind: "pin" });
       return;
     }
     if (dragState.kind === "move-tee") {
       updateHole({ ...normalizedHole, tee: point });
-      setSelectedFeature("tee");
+      setSelectedEntity({ kind: "tee" });
       return;
     }
     if (dragState.kind === "move-fairway") {
@@ -257,20 +236,20 @@ export function InteractiveHoleMap({
           ),
         ),
       );
-      setSelectedFeature("fairway");
+      setSelectedEntity({ kind: "fairway" });
       return;
     }
     if (dragState.kind === "resize-fairway-width") {
       const centerX = fairwayCenterAtY(fairwayPath, point.y);
       updateHole({ ...normalizedHole, fairway_width: Number(Math.max(12, Math.abs(point.x - centerX) * 2).toFixed(1)) });
-      setSelectedFeature("fairway");
+      setSelectedEntity({ kind: "fairway" });
       return;
     }
     if (dragState.kind === "resize-rough-width") {
       const centerX = fairwayCenterAtY(fairwayPath, point.y);
       const totalHalf = Math.max(normalizedHole.fairway_width / 2 + 4, Math.abs(point.x - centerX));
       updateHole({ ...normalizedHole, rough_width: Number(Math.max(6, totalHalf - normalizedHole.fairway_width / 2).toFixed(1)) });
-      setSelectedFeature("rough");
+      setSelectedEntity({ kind: "rough" });
       return;
     }
     if (dragState.kind === "move-hazard") {
@@ -291,6 +270,7 @@ export function InteractiveHoleMap({
         ),
       });
       onSelectHazard(dragState.index);
+      setSelectedEntity({ kind: "hazard", index: dragState.index });
       return;
     }
     if (dragState.kind === "resize-hazard") {
@@ -324,6 +304,7 @@ export function InteractiveHoleMap({
         }),
       });
       onSelectHazard(dragState.index);
+      setSelectedEntity({ kind: "hazard", index: dragState.index });
     }
   }
 
@@ -335,13 +316,16 @@ export function InteractiveHoleMap({
   }
 
   const midPoint = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? { x: normalizedHole.fairway_center_x, y: normalizedHole.fairway_start_y };
-  const fairwayWidthHandle = { x: midPoint.x + normalizedHole.fairway_width / 2, y: midPoint.y };
-  const roughWidthHandle = { x: midPoint.x + normalizedHole.fairway_width / 2 + normalizedHole.rough_width, y: midPoint.y };
-
-  const fairwaySelected = selectedFeature === "fairway";
-  const roughSelected = selectedFeature === "rough";
-  const greenSelected = selectedFeature === "green";
-  const teeSelected = selectedFeature === "tee";
+  const fairwaySelected = selectedEntity?.kind === "fairway";
+  const roughSelected = selectedEntity?.kind === "rough";
+  const greenSelected = selectedEntity?.kind === "green";
+  const teeSelected = selectedEntity?.kind === "tee";
+  const pinSelected = selectedEntity?.kind === "pin";
+  const selectedHazard =
+    selectedEntity?.kind === "hazard" && normalizedHole.hazards[selectedEntity.index]
+      ? normalizedHole.hazards[selectedEntity.index]
+      : null;
+  const selectedHazardCenter = selectedHazard ? hazardCenter(selectedHazard) : null;
 
   return (
     <section className="card map-card">
@@ -387,21 +371,9 @@ export function InteractiveHoleMap({
               strokeWidth={normalizedHole.fairway_width + normalizedHole.rough_width * 2}
               onClick={(event) => {
                 event.stopPropagation();
-                setSelectedFeature("rough");
+                setSelectedEntity({ kind: "rough" });
+                onSelectHazard(null);
               }}
-              onPointerDown={(event) =>
-                (() => {
-                  const point = holePointFromEvent(event);
-                  const centerX = fairwayCenterAtY(fairwayPath, point.y);
-                  startResizeOrMove(
-                    event,
-                    { kind: "move-fairway", origin: point, path: fairwayPath },
-                    Math.abs(point.x - centerX) >= normalizedHole.fairway_width / 2 + normalizedHole.rough_width * 0.45
-                      ? { kind: "resize-rough-width" }
-                      : undefined,
-                  );
-                })()
-              }
             />
             <path d={fairwayLine} className="hole-map__fairway-shadow" strokeWidth={normalizedHole.fairway_width + 5} />
             <path
@@ -410,69 +382,71 @@ export function InteractiveHoleMap({
               strokeWidth={normalizedHole.fairway_width}
               onClick={(event) => {
                 event.stopPropagation();
-                setSelectedFeature("fairway");
+                setSelectedEntity({ kind: "fairway" });
+                onSelectHazard(null);
               }}
-              onPointerDown={(event) =>
-                (() => {
-                  const point = holePointFromEvent(event);
-                  const centerX = fairwayCenterAtY(fairwayPath, point.y);
-                  startResizeOrMove(
-                    event,
-                    { kind: "move-fairway", origin: point, path: fairwayPath },
-                    Math.abs(point.x - centerX) >= normalizedHole.fairway_width / 2 - 4
-                      ? { kind: "resize-fairway-width" }
-                      : undefined,
-                  );
-                })()
-              }
             />
             <path d={fairwayLine} className="hole-map__fairway-centerline" strokeWidth={1.6} />
-            <line
-              x1={projection.toSvgX(fairwayWidthHandle.x)}
-              y1={projection.toSvgY(fairwayWidthHandle.y + 10)}
-              x2={projection.toSvgX(fairwayWidthHandle.x)}
-              y2={projection.toSvgY(fairwayWidthHandle.y - 10)}
-              className={`hole-map__edge-grip ${fairwaySelected ? "hole-map__edge-grip--active" : ""}`}
-              onPointerDown={(event) => startDrag(event.pointerId, { kind: "resize-fairway-width" })}
-            />
-            <line
-              x1={projection.toSvgX(roughWidthHandle.x)}
-              y1={projection.toSvgY(roughWidthHandle.y + 10)}
-              x2={projection.toSvgX(roughWidthHandle.x)}
-              y2={projection.toSvgY(roughWidthHandle.y - 10)}
-              className={`hole-map__edge-grip ${roughSelected ? "hole-map__edge-grip--active" : ""}`}
-              onPointerDown={(event) => startDrag(event.pointerId, { kind: "resize-rough-width" })}
-            />
+            {fairwaySelected ? (
+              <path
+                d={fairwayLine}
+                className="hole-map__selection-outline"
+                strokeWidth={normalizedHole.fairway_width}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "resize-fairway-width" });
+                }}
+              />
+            ) : null}
+            {roughSelected ? (
+              <path
+                d={fairwayLine}
+                className="hole-map__selection-outline"
+                strokeWidth={normalizedHole.fairway_width + normalizedHole.rough_width * 2}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "resize-rough-width" });
+                }}
+              />
+            ) : null}
 
             <path
               d={greenPath}
               className={`hole-map__green ${greenSelected ? "hole-map__green--selected" : ""}`}
               onClick={(event) => {
                 event.stopPropagation();
-                setSelectedFeature("green");
+                setSelectedEntity({ kind: "green" });
                 onSelectHazard(null);
               }}
-              onPointerDown={(event) =>
-                startResizeOrMove(
-                  event,
-                  { kind: "move-green" },
-                  isNearGreenEdge(holePointFromEvent(event), normalizedHole.green_center, normalizedHole.green_radius)
-                    ? { kind: "resize-green" }
-                    : undefined,
-                )
-              }
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                startDrag(event.pointerId, { kind: "move-green" });
+              }}
             />
             <path d={greenInnerPath} className="hole-map__green-inner" />
-            {greenSelected ? <path d={greenPath} className="hole-map__selection-outline" /> : null}
+            {greenSelected ? (
+              <path
+                d={greenPath}
+                className="hole-map__selection-outline"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "resize-green" });
+                }}
+              />
+            ) : null}
 
             <path
               d={teePath}
               className={`hole-map__tee-box ${teeSelected ? "hole-map__tee-box--selected" : ""}`}
               onClick={(event) => {
                 event.stopPropagation();
-                setSelectedFeature("tee");
+                setSelectedEntity({ kind: "tee" });
+                onSelectHazard(null);
               }}
-              onPointerDown={(event) => startResizeOrMove(event, { kind: "move-tee" })}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                startDrag(event.pointerId, { kind: "move-tee" });
+              }}
             />
 
             {normalizedHole.hazards.map((hazard, index) => {
@@ -480,16 +454,11 @@ export function InteractiveHoleMap({
               const commonClick = (event: MouseEvent<SVGElement>) => {
                 event.stopPropagation();
                 onSelectHazard(index);
-                setSelectedFeature(null);
+                setSelectedEntity({ kind: "hazard", index });
               };
               const commonPointerDown = (event: PointerEvent<SVGElement>) => {
-                startResizeOrMove(
-                  event,
-                  { kind: "move-hazard", index, origin: holePointFromEvent(event), hazard },
-                  isNearHazardEdge(holePointFromEvent(event), hazard)
-                    ? { kind: "resize-hazard", index, hazard }
-                    : undefined,
-                );
+                event.stopPropagation();
+                startDrag(event.pointerId, { kind: "move-hazard", index, origin: holePointFromEvent(event), hazard });
               };
               if (organicPath) {
                 return (
@@ -542,10 +511,133 @@ export function InteractiveHoleMap({
               className="hole-map__pin-point"
               onClick={(event) => {
                 event.stopPropagation();
-                setSelectedFeature("pin");
+                setSelectedEntity({ kind: "pin" });
+                onSelectHazard(null);
               }}
-              onPointerDown={(event) => startResizeOrMove(event, { kind: "move-pin" })}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                startDrag(event.pointerId, { kind: "move-pin" });
+              }}
             />
+            {pinSelected ? (
+              <circle
+                cx={projection.toSvgX(pin.x)}
+                cy={projection.toSvgY(pin.y)}
+                r="8"
+                className="hole-map__selection-outline-circle"
+              />
+            ) : null}
+
+            {greenSelected ? (
+              <circle
+                cx={projection.toSvgX(normalizedHole.green_center.x)}
+                cy={projection.toSvgY(normalizedHole.green_center.y)}
+                r="10"
+                className="hole-map__move-handle"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "move-green" });
+                }}
+              />
+            ) : null}
+            {fairwaySelected ? (
+              <circle
+                cx={projection.toSvgX(midPoint.x)}
+                cy={projection.toSvgY(midPoint.y)}
+                r="10"
+                className="hole-map__move-handle"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "move-fairway", origin: midPoint, path: fairwayPath });
+                }}
+              />
+            ) : null}
+            {roughSelected ? (
+              <circle
+                cx={projection.toSvgX(midPoint.x)}
+                cy={projection.toSvgY(midPoint.y)}
+                r="10"
+                className="hole-map__move-handle"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "move-fairway", origin: midPoint, path: fairwayPath });
+                }}
+              />
+            ) : null}
+            {teeSelected ? (
+              <circle
+                cx={projection.toSvgX(normalizedHole.tee.x)}
+                cy={projection.toSvgY(normalizedHole.tee.y)}
+                r="10"
+                className="hole-map__move-handle"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "move-tee" });
+                }}
+              />
+            ) : null}
+            {pinSelected ? (
+              <circle
+                cx={projection.toSvgX(pin.x)}
+                cy={projection.toSvgY(pin.y)}
+                r="10"
+                className="hole-map__move-handle"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "move-pin" });
+                }}
+              />
+            ) : null}
+            {selectedHazard && selectedHazardCenter ? (
+              <>
+                {hazardPath(selectedHazard, projection, 97) ? (
+                  <path
+                    d={hazardPath(selectedHazard, projection, 97)!}
+                    className="hole-map__selection-outline"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      startDrag(event.pointerId, {
+                        kind: "resize-hazard",
+                        index: selectedEntity!.kind === "hazard" ? selectedEntity.index : 0,
+                        hazard: selectedHazard,
+                      });
+                    }}
+                  />
+                ) : null}
+                {selectedHazard.shape === "corridor" && selectedHazard.width && selectedHazard.start_y != null && selectedHazard.end_y != null ? (
+                  <rect
+                    x={projection.toSvgX(selectedHazard.center_x - selectedHazard.width / 2)}
+                    y={projection.toSvgY(selectedHazard.end_y)}
+                    width={selectedHazard.width}
+                    height={selectedHazard.end_y - selectedHazard.start_y}
+                    className="hole-map__selection-outline-rect"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      startDrag(event.pointerId, {
+                        kind: "resize-hazard",
+                        index: selectedEntity!.kind === "hazard" ? selectedEntity.index : 0,
+                        hazard: selectedHazard,
+                      });
+                    }}
+                  />
+                ) : null}
+                <circle
+                  cx={projection.toSvgX(selectedHazardCenter.x)}
+                  cy={projection.toSvgY(selectedHazardCenter.y)}
+                  r="10"
+                  className="hole-map__move-handle"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startDrag(event.pointerId, {
+                      kind: "move-hazard",
+                      index: selectedEntity!.kind === "hazard" ? selectedEntity.index : 0,
+                      origin: selectedHazardCenter,
+                      hazard: selectedHazard,
+                    });
+                  }}
+                />
+              </>
+            ) : null}
           </g>
         </svg>
       </div>
