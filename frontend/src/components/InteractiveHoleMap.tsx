@@ -197,11 +197,8 @@ export function InteractiveHoleMap({
   }
 
   function startResizeOrMove(event: PointerEvent<SVGElement>, moveState: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>, resizeState?: Exclude<DragState, { kind: "pan"; pointerId: number; svgX: number; svgY: number; startPanX: number; startPanY: number }>) {
-    if (tool === "delete") {
-      return;
-    }
     event.stopPropagation();
-    if (tool === "resize" && resizeState) {
+    if (resizeState) {
       startDrag(event.pointerId, resizeState);
       return;
     }
@@ -408,18 +405,6 @@ export function InteractiveHoleMap({
   const greenSelected = selectedFeature === "green";
   const teeSelected = selectedFeature === "tee";
 
-  function maybeDeleteHazard(index: number) {
-    if (tool !== "delete") {
-      return false;
-    }
-    updateHole({
-      ...normalizedHole,
-      hazards: normalizedHole.hazards.filter((_, rowIndex) => rowIndex !== index),
-    });
-    onSelectHazard(null);
-    return true;
-  }
-
   return (
     <section className="card map-card">
       <div className="card__header">
@@ -427,7 +412,7 @@ export function InteractiveHoleMap({
           <p className="eyebrow">Designer</p>
           <h2>Interactive Hole Editor</h2>
           <p className="map-subtitle">
-            Pick a mode, then click and drag directly on the course to move or resize major features.
+            Drag any feature directly on the course. The center moves it, while the edge resizes it.
           </p>
         </div>
       </div>
@@ -479,15 +464,17 @@ export function InteractiveHoleMap({
                 setSelectedFeature("rough");
               }}
               onPointerDown={(event) =>
-                startResizeOrMove(event, { kind: "move-fairway", origin: holePointFromEvent(event), path: fairwayPath }, {
-                  kind:
-                    Math.abs(
-                      holePointFromEvent(event).x - fairwayCenterAtY(fairwayPath, holePointFromEvent(event).y),
-                    ) >=
-                    normalizedHole.fairway_width / 2 + normalizedHole.rough_width * 0.45
-                      ? "resize-rough-width"
-                      : "move-fairway",
-                } as DragState)
+                (() => {
+                  const point = holePointFromEvent(event);
+                  const centerX = fairwayCenterAtY(fairwayPath, point.y);
+                  startResizeOrMove(
+                    event,
+                    { kind: "move-fairway", origin: point, path: fairwayPath },
+                    Math.abs(point.x - centerX) >= normalizedHole.fairway_width / 2 + normalizedHole.rough_width * 0.45
+                      ? { kind: "resize-rough-width" }
+                      : undefined,
+                  );
+                })()
               }
             />
             <path d={fairwayLine} className="hole-map__fairway-shadow" strokeWidth={normalizedHole.fairway_width + 5} />
@@ -500,15 +487,17 @@ export function InteractiveHoleMap({
                 setSelectedFeature("fairway");
               }}
               onPointerDown={(event) =>
-                startResizeOrMove(event, { kind: "move-fairway", origin: holePointFromEvent(event), path: fairwayPath }, {
-                  kind:
-                    Math.abs(
-                      holePointFromEvent(event).x - fairwayCenterAtY(fairwayPath, holePointFromEvent(event).y),
-                    ) >=
-                    normalizedHole.fairway_width / 2 - 4
-                      ? "resize-fairway-width"
-                      : "move-fairway",
-                } as DragState)
+                (() => {
+                  const point = holePointFromEvent(event);
+                  const centerX = fairwayCenterAtY(fairwayPath, point.y);
+                  startResizeOrMove(
+                    event,
+                    { kind: "move-fairway", origin: point, path: fairwayPath },
+                    Math.abs(point.x - centerX) >= normalizedHole.fairway_width / 2 - 4
+                      ? { kind: "resize-fairway-width" }
+                      : undefined,
+                  );
+                })()
               }
             />
             <path d={fairwayLine} className="hole-map__fairway-centerline" strokeWidth={1.6} />
@@ -564,9 +553,6 @@ export function InteractiveHoleMap({
               const organicPath = hazardPath(hazard, projection, index + 3);
               const commonClick = (event: MouseEvent<SVGElement>) => {
                 event.stopPropagation();
-                if (maybeDeleteHazard(index)) {
-                  return;
-                }
                 onSelectHazard(index);
                 setSelectedFeature(null);
               };
