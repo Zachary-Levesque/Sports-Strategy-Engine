@@ -63,19 +63,6 @@ The hole editor uses an SVG course surface backed by a normalized hole model.
 
 The editor is built to keep object movement stable during drag operations by freezing the projection used for coordinate conversion during active edits.
 
-## Engineering Challenges
-
-- Stable SVG editing with normalized geometry
-  The editor has to support selection, dragging, resizing, and geometry updates without letting shapes drift, corrupt, or become invalid.
-- Probabilistic shot-dispersion modeling
-  The simulation system converts player skill, club characteristics, lie, wind, and shot shape into a 2D probabilistic outcome model.
-- Expected value vs variance tradeoffs
-  The engine does not optimize only for lowest expected strokes; it also weighs variance and penalty exposure based on player risk tolerance.
-- Syncing frontend editor state with backend persistence
-  The application has to keep temporary editor interactions, saved hole definitions, and API-backed data consistent across edits and reloads.
-- Deterministic simulations for testing and reproducibility
-  Seeded simulation runs make debugging and regression testing practical in a stochastic system.
-
 ## Installation
 
 ### Prerequisites
