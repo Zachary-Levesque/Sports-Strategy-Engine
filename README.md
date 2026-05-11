@@ -1,17 +1,33 @@
 # Sports Strategy Engine
 
-Sports Strategy Engine is a full-stack golf strategy application that combines a Monte Carlo shot simulation engine, a FastAPI backend, SQLite persistence, and a React/TypeScript frontend with a visual hole editor.
+Sports Strategy Engine is a full-stack golf decision-analysis platform for modeling shot strategy under uncertainty. It combines a Monte Carlo shot simulation engine, a FastAPI backend, SQLite persistence, and a React/TypeScript frontend with a visual SVG hole editor so users can define players, design holes, and evaluate strategic shot choices through probabilistic analysis.
 
-It is designed to help players and coaches model golf decision-making, compare shot options under uncertainty, and build custom holes that can be analyzed interactively.
+It is designed for exploring how player tendencies, hole geometry, dispersion, wind, and risk tolerance influence golf decision-making in a practical interactive workflow.
+
+## Project Status
+
+This project is functional and locally runnable, with working strategy simulation, player management, hole editing, and recommendation history. It is best described as a polished local application and engineering portfolio project rather than a deployed production service.
+
+Current state:
+
+- core full-stack workflow is implemented
+- automated backend tests are in place
+- frontend build validation is in place
+- the visual editor and simulation engine have gone through multiple stability passes
+- future work remains around release packaging, hosted deployment, and deeper browser-level integration testing
+
+## Preview
+
+![Sports Strategy Engine Preview](docs/images/preview.png)
 
 ## Why This Project Is Useful
 
 Most golf tools focus on static distances or simple score tracking. This project is different:
 
-- it models shot outcomes probabilistically instead of assuming perfect execution
+- it models shot outcomes using probabilistic simulation rather than assuming perfect execution
 - it compares strategic options using expected strokes, variance, and penalty exposure
 - it allows users to create and edit holes visually rather than relying on fixed templates
-- it keeps strategy history so results can be reviewed after each simulation
+- it persists recommendation and simulation history so results can be reviewed after each run
 
 The result is a practical sandbox for course strategy analysis, simulation-based coaching, and product experimentation around golf intelligence workflows.
 
@@ -62,6 +78,19 @@ The hole editor uses an SVG course surface backed by a normalized hole model.
 - Hazard geometry is normalized so kind and shape transitions stay valid
 
 The editor is built to keep object movement stable during drag operations by freezing the projection used for coordinate conversion during active edits.
+
+## Engineering Challenges
+
+- Stable SVG editing with normalized geometry
+  The editor has to support selection, dragging, resizing, and geometry updates without letting shapes drift, corrupt, or become invalid.
+- Probabilistic shot-dispersion modeling
+  The simulation system converts player skill, club characteristics, lie, wind, and shot shape into a 2D probabilistic outcome model.
+- Expected value vs variance tradeoffs
+  The engine does not optimize only for lowest expected strokes; it also weighs variance and penalty exposure based on player risk tolerance.
+- Syncing frontend editor state with backend persistence
+  The application has to keep temporary editor interactions, saved hole definitions, and API-backed data consistent across edits and reloads.
+- Deterministic simulations for testing and reproducibility
+  Seeded simulation runs make debugging and regression testing practical in a stochastic system.
 
 ## Installation
 
@@ -217,3 +246,7 @@ Suggested markdown once screenshots exist:
 - [API Reference](docs/api.md)
 - [Math Model](docs/math_model.md)
 - [User Flows](docs/user_flows.md)
+
+## License
+
+Add a project license before public release.
