@@ -4,22 +4,6 @@ Sports Strategy Engine is a full-stack golf decision-analysis platform for model
 
 It is designed for exploring how player tendencies, hole geometry, dispersion, wind, and risk tolerance influence golf decision-making in a practical interactive workflow.
 
-## Project Status
-
-This project is functional and locally runnable, with working strategy simulation, player management, hole editing, and recommendation history. It is best described as a polished local application and engineering portfolio project rather than a deployed production service.
-
-Current state:
-
-- core full-stack workflow is implemented
-- automated backend tests are in place
-- frontend build validation is in place
-- the visual editor and simulation engine have gone through multiple stability passes
-- future work remains around release packaging, hosted deployment, and deeper browser-level integration testing
-
-## Preview
-
-![Sports Strategy Engine Preview](docs/images/preview.png)
-
 ## Why This Project Is Useful
 
 Most golf tools focus on static distances or simple score tracking. This project is different:
