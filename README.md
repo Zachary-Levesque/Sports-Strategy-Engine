@@ -152,10 +152,6 @@ Open:
 - Fairway and rough expose width handles
 - Hazards expose geometry-appropriate handles based on shape
 
-### Undo
-
-- Use `Cancel last change` in the editor toolbar to revert the last structural edit
-
 ## Testing
 
 Run the full automated checks:
