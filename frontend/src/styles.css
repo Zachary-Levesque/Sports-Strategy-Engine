@@ -1165,6 +1165,14 @@ body {
   filter: drop-shadow(0 3px 7px rgba(117, 28, 20, 0.24));
 }
 
+.hole-map__resize-handle {
+  fill: #ffffff;
+  stroke: #cf3b2e;
+  stroke-width: 3;
+  cursor: nwse-resize;
+  filter: drop-shadow(0 2px 6px rgba(117, 28, 20, 0.2));
+}
+
 .editor-toolbar {
   display: grid;
   gap: 14px;
