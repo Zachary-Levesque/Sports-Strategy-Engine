@@ -128,6 +128,51 @@ export function createHazard(kind: HazardKind, pointHint?: AimPoint): HazardData
   };
 }
 
+export function normalizeHazardDraft(hazard: HazardData): HazardData {
+  const base: HazardData = {
+    ...hazard,
+    center_x: Number((hazard.center_x ?? 0).toFixed(1)),
+    center_y: Number((hazard.center_y ?? 0).toFixed(1)),
+    penalty_strokes: Number.isFinite(hazard.penalty_strokes) ? hazard.penalty_strokes : 0,
+  };
+
+  if (base.shape === "circle") {
+    return {
+      ...base,
+      radius: Number(Math.max(6, base.radius ?? 12).toFixed(1)),
+      width: null,
+      depth: null,
+      start_y: null,
+      end_y: null,
+    };
+  }
+
+  if (base.shape === "corridor") {
+    const startY = base.start_y ?? base.center_y - 40;
+    const endY = base.end_y ?? base.center_y + 40;
+    const safeStart = Math.min(startY, endY - 12);
+    const safeEnd = Math.max(endY, safeStart + 12);
+    return {
+      ...base,
+      width: Number(Math.max(8, base.width ?? 16).toFixed(1)),
+      start_y: Number(safeStart.toFixed(1)),
+      end_y: Number(safeEnd.toFixed(1)),
+      center_y: Number((((safeStart + safeEnd) / 2)).toFixed(1)),
+      radius: null,
+      depth: null,
+    };
+  }
+
+  return {
+    ...base,
+    width: Number(Math.max(8, base.width ?? 28).toFixed(1)),
+    depth: Number(Math.max(8, base.depth ?? 28).toFixed(1)),
+    radius: null,
+    start_y: null,
+    end_y: null,
+  };
+}
+
 function hazardSetForShape(shape: HoleLayoutShape, par: number, yardage: number, fairwayPath: AimPoint[]): HazardData[] {
   const end = fairwayPath[fairwayPath.length - 1] ?? point(0, yardage - 24);
   const mid = fairwayPath[Math.floor(fairwayPath.length / 2)] ?? point(0, yardage * 0.5);
@@ -313,6 +358,7 @@ export function normalizeHole<T extends HolePayload>(hole: T): T {
     ...hole,
     pin_position: pinPosition,
     fairway_path: normalizedFairwayPath,
+    hazards: hole.hazards.map(normalizeHazardDraft),
   } as T;
 }
 
