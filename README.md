@@ -217,7 +217,3 @@ Suggested markdown once screenshots exist:
 - [API Reference](docs/api.md)
 - [Math Model](docs/math_model.md)
 - [User Flows](docs/user_flows.md)
-
-## License
-
-Add a project license before public release.
