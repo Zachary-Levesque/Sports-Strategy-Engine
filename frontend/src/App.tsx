@@ -24,11 +24,12 @@ import { InteractiveHoleMap } from "./components/InteractiveHoleMap";
 import { PlayerSelector } from "./components/PlayerSelector";
 import { ProbabilityBreakdown } from "./components/ProbabilityBreakdown";
 import { RecommendationCard } from "./components/RecommendationCard";
-import { createGeneratedHoleDraft, normalizeHole } from "./lib/holeEditor";
+import { createGeneratedHoleDraft, createHazard, normalizeHazardDraft, normalizeHole } from "./lib/holeEditor";
 import type {
   AimPoint,
   ClubData,
   HazardData,
+  HazardKind,
   HoleDetail,
   HoleLayoutShape,
   HolePayload,
@@ -209,6 +210,10 @@ function App() {
   }, [activePlayer]);
 
   useEffect(() => {
+    setResult(null);
+  }, [selectedPlayer, selectedHole]);
+
+  useEffect(() => {
     if (!selectedHole) {
       setSelectedHoleDetail(null);
       return;
@@ -380,6 +385,7 @@ function App() {
       }
       setHoleForm(payload);
       setHoleUndoStack([]);
+      setSelectedHoleDetail(payload as HoleDetail);
       await loadInitialData();
       setEditingHoleId(payload.hole_id);
       setSelectedHole(payload.hole_id);
@@ -452,7 +458,7 @@ function App() {
     rememberHoleVersion(holeForm);
     setHoleForm((current) => {
       const hazards = [...current.hazards];
-      hazards[index] = {
+      const nextHazard = {
         ...hazards[index],
         [key]:
           key === "kind" || key === "shape"
@@ -461,6 +467,16 @@ function App() {
               ? null
               : Number(value),
       };
+      hazards[index] =
+        key === "kind"
+          ? normalizeHazardDraft({
+              ...createHazard(value as HazardKind, {
+                x: nextHazard.center_x,
+                y: nextHazard.center_y,
+              }),
+              penalty_strokes: nextHazard.penalty_strokes,
+            })
+          : normalizeHazardDraft(nextHazard);
       return normalizeHole({ ...current, hazards });
     });
   }
