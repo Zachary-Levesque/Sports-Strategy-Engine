@@ -17,15 +17,15 @@ interface InteractiveHoleMapProps {
 }
 
 type DragState =
-  | { kind: "move-green" }
-  | { kind: "resize-green" }
-  | { kind: "move-pin" }
-  | { kind: "move-tee" }
-  | { kind: "move-fairway"; origin: AimPoint; path: AimPoint[] }
-  | { kind: "resize-fairway-width" }
-  | { kind: "resize-rough-width" }
-  | { kind: "move-hazard"; index: number; origin: AimPoint; hazard: HazardData }
-  | { kind: "resize-hazard"; index: number; hazard: HazardData };
+  | { kind: "move-green"; start: AimPoint; greenCenter: AimPoint; pin: AimPoint }
+  | { kind: "resize-green"; center: AimPoint }
+  | { kind: "move-pin"; center: AimPoint }
+  | { kind: "move-tee"; start: AimPoint; tee: AimPoint }
+  | { kind: "move-fairway"; start: AimPoint; path: AimPoint[] }
+  | { kind: "resize-fairway-width"; centerX: number; width: number }
+  | { kind: "resize-rough-width"; centerX: number; fairwayWidth: number; roughWidth: number }
+  | { kind: "move-hazard"; index: number; start: AimPoint; hazard: HazardData }
+  | { kind: "resize-hazard"; index: number; hazard: HazardData; handle: "radius" | "left" | "right" | "top" | "bottom" };
 
 type SelectedEntity =
   | { kind: "green" }
@@ -88,6 +88,41 @@ function hazardCenter(hazard: HazardData): AimPoint {
     };
   }
   return { x: hazard.center_x, y: hazard.center_y };
+}
+
+function translatePoint(point: AimPoint, dx: number, dy: number): AimPoint {
+  return roundPoint({ x: point.x + dx, y: point.y + dy });
+}
+
+function rectHandlePoint(hazard: HazardData, handle: "left" | "right" | "top" | "bottom"): AimPoint | null {
+  if (hazard.shape === "circle" && hazard.radius) {
+    return { x: hazard.center_x + hazard.radius, y: hazard.center_y };
+  }
+  if (hazard.shape === "rectangle" && hazard.width && hazard.depth) {
+    if (handle === "left") {
+      return { x: hazard.center_x - hazard.width / 2, y: hazard.center_y };
+    }
+    if (handle === "right") {
+      return { x: hazard.center_x + hazard.width / 2, y: hazard.center_y };
+    }
+    if (handle === "top") {
+      return { x: hazard.center_x, y: hazard.center_y + hazard.depth / 2 };
+    }
+    return { x: hazard.center_x, y: hazard.center_y - hazard.depth / 2 };
+  }
+  if (hazard.shape === "corridor" && hazard.width && hazard.start_y != null && hazard.end_y != null) {
+    if (handle === "left") {
+      return { x: hazard.center_x - hazard.width / 2, y: (hazard.start_y + hazard.end_y) / 2 };
+    }
+    if (handle === "right") {
+      return { x: hazard.center_x + hazard.width / 2, y: (hazard.start_y + hazard.end_y) / 2 };
+    }
+    if (handle === "top") {
+      return { x: hazard.center_x, y: hazard.end_y };
+    }
+    return { x: hazard.center_x, y: hazard.start_y };
+  }
+  return null;
 }
 
 export function InteractiveHoleMap({
