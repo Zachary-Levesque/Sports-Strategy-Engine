@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 
 import type { AimPoint, HazardData, HolePayload } from "../types";
@@ -112,11 +112,13 @@ export function InteractiveHoleMap({
 }: InteractiveHoleMapProps) {
   const normalizedHole = normalizeHole(hole);
   const fairwayPath = fairwayPathForRender(normalizedHole);
-  const projection = useMemo(() => getProjection(normalizedHole), [normalizedHole]);
-  const fairwayLine = fairwayPathSvg(fairwayPath, projection);
+  const liveProjection = useMemo(() => getProjection(normalizedHole), [normalizedHole]);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragProjectionRef = useRef(liveProjection);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const projection = dragState ? dragProjectionRef.current : liveProjection;
+  const fairwayLine = fairwayPathSvg(fairwayPath, projection);
 
   const pin = normalizedHole.pin_position ?? normalizedHole.green_center;
   const flag = flagPath(pin, projection);
@@ -135,6 +137,19 @@ export function InteractiveHoleMap({
     19,
   );
   const teePath = teeBoxPath(normalizedHole.tee, projection);
+
+  useEffect(() => {
+    if (!dragState) {
+      dragProjectionRef.current = liveProjection;
+    }
+  }, [dragState, liveProjection]);
+
+  useEffect(() => {
+    if (selectedEntity?.kind === "hazard" && !normalizedHole.hazards[selectedEntity.index]) {
+      setSelectedEntity(null);
+      onSelectHazard(null);
+    }
+  }, [normalizedHole.hazards, onSelectHazard, selectedEntity]);
 
   function updateHole(nextHole: HolePayload) {
     onChange(normalizeHole(nextHole));
@@ -165,6 +180,7 @@ export function InteractiveHoleMap({
     pointerId: number,
     nextDragState: DragState,
   ) {
+    dragProjectionRef.current = liveProjection;
     onBeginEdit(normalizedHole);
     setDragState(nextDragState);
     svgRef.current?.setPointerCapture(pointerId);
@@ -345,6 +361,7 @@ export function InteractiveHoleMap({
     if (dragState) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    dragProjectionRef.current = liveProjection;
     setDragState(null);
   }
 
