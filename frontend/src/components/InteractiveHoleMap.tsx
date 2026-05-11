@@ -216,26 +216,24 @@ export function InteractiveHoleMap({
     }
     const point = holePointFromEvent(event);
     if (dragState.kind === "move-green") {
-      const previousGreen = normalizedHole.green_center;
-      const previousPin = normalizedHole.pin_position ?? previousGreen;
-      const movedPin = roundPoint({
-        x: previousPin.x + (point.x - previousGreen.x),
-        y: previousPin.y + (point.y - previousGreen.y),
-      });
+      const dx = point.x - dragState.start.x;
+      const dy = point.y - dragState.start.y;
+      const nextCenter = translatePoint(dragState.greenCenter, dx, dy);
+      const movedPin = translatePoint(dragState.pin, dx, dy);
       updateHole({
         ...normalizedHole,
-        green_center: point,
-        pin_position: clampPinToGreen(movedPin, point, normalizedHole.green_radius),
+        green_center: nextCenter,
+        pin_position: clampPinToGreen(movedPin, nextCenter, normalizedHole.green_radius),
       });
       setSelectedEntity({ kind: "green" });
       return;
     }
     if (dragState.kind === "resize-green") {
-      const radius = Number(Math.max(8, Math.hypot(point.x - normalizedHole.green_center.x, point.y - normalizedHole.green_center.y)).toFixed(1));
+      const radius = Number(Math.max(8, Math.hypot(point.x - dragState.center.x, point.y - dragState.center.y)).toFixed(1));
       updateHole({
         ...normalizedHole,
         green_radius: radius,
-        pin_position: clampPinToGreen(pin, normalizedHole.green_center, radius),
+        pin_position: clampPinToGreen(pin, dragState.center, radius),
       });
       setSelectedEntity({ kind: "green" });
       return;
@@ -243,19 +241,21 @@ export function InteractiveHoleMap({
     if (dragState.kind === "move-pin") {
       updateHole({
         ...normalizedHole,
-        pin_position: clampPinToGreen(point, normalizedHole.green_center, normalizedHole.green_radius),
+        pin_position: clampPinToGreen(point, dragState.center, normalizedHole.green_radius),
       });
       setSelectedEntity({ kind: "pin" });
       return;
     }
     if (dragState.kind === "move-tee") {
-      updateHole({ ...normalizedHole, tee: point });
+      const dx = point.x - dragState.start.x;
+      const dy = point.y - dragState.start.y;
+      updateHole({ ...normalizedHole, tee: translatePoint(dragState.tee, dx, dy) });
       setSelectedEntity({ kind: "tee" });
       return;
     }
     if (dragState.kind === "move-fairway") {
-      const dx = point.x - dragState.origin.x;
-      const dy = point.y - dragState.origin.y;
+      const dx = point.x - dragState.start.x;
+      const dy = point.y - dragState.start.y;
       updateHole(
         syncLegacyFairwayFields(
           normalizedHole,
@@ -275,21 +275,25 @@ export function InteractiveHoleMap({
       return;
     }
     if (dragState.kind === "resize-fairway-width") {
-      const centerX = fairwayCenterAtY(fairwayPath, point.y);
-      updateHole({ ...normalizedHole, fairway_width: Number(Math.max(12, Math.abs(point.x - centerX) * 2).toFixed(1)) });
+      updateHole({
+        ...normalizedHole,
+        fairway_width: Number(Math.max(12, Math.abs(point.x - dragState.centerX) * 2).toFixed(1)),
+      });
       setSelectedEntity({ kind: "fairway" });
       return;
     }
     if (dragState.kind === "resize-rough-width") {
-      const centerX = fairwayCenterAtY(fairwayPath, point.y);
-      const totalHalf = Math.max(normalizedHole.fairway_width / 2 + 4, Math.abs(point.x - centerX));
-      updateHole({ ...normalizedHole, rough_width: Number(Math.max(6, totalHalf - normalizedHole.fairway_width / 2).toFixed(1)) });
+      const totalHalf = Math.max(dragState.fairwayWidth / 2 + 4, Math.abs(point.x - dragState.centerX));
+      updateHole({
+        ...normalizedHole,
+        rough_width: Number(Math.max(6, totalHalf - dragState.fairwayWidth / 2).toFixed(1)),
+      });
       setSelectedEntity({ kind: "rough" });
       return;
     }
     if (dragState.kind === "move-hazard") {
-      const dx = point.x - dragState.origin.x;
-      const dy = point.y - dragState.origin.y;
+      const dx = point.x - dragState.start.x;
+      const dy = point.y - dragState.start.y;
       updateHole({
         ...normalizedHole,
         hazards: normalizedHole.hazards.map((hazard, index) =>
@@ -318,23 +322,40 @@ export function InteractiveHoleMap({
           if (hazard.shape === "circle") {
             return {
               ...hazard,
-              radius: Number(Math.max(6, Math.hypot(point.x - hazard.center_x, point.y - hazard.center_y)).toFixed(1)),
+              radius: Number(
+                Math.max(6, Math.hypot(point.x - dragState.hazard.center_x, point.y - dragState.hazard.center_y)).toFixed(1),
+              ),
             };
           }
           if (hazard.shape === "corridor") {
-            const startY = hazard.start_y ?? hazard.center_y;
-            const endY = Number(Math.max(startY + 12, point.y).toFixed(1));
+            const startY = dragState.hazard.start_y ?? dragState.hazard.center_y;
+            const endY = dragState.hazard.end_y ?? dragState.hazard.center_y;
+            if (dragState.handle === "left" || dragState.handle === "right") {
+              return {
+                ...hazard,
+                width: Number(Math.max(8, Math.abs(point.x - dragState.hazard.center_x) * 2).toFixed(1)),
+              };
+            }
+            if (dragState.handle === "top") {
+              const nextEnd = Number(Math.max(startY + 12, point.y).toFixed(1));
+              return {
+                ...hazard,
+                end_y: nextEnd,
+                center_y: Number(((startY + nextEnd) / 2).toFixed(1)),
+              };
+            }
             return {
               ...hazard,
-              width: Number(Math.max(8, Math.abs(point.x - hazard.center_x) * 2).toFixed(1)),
-              end_y: endY,
-              center_y: Number(((startY + endY) / 2).toFixed(1)),
+              start_y: Number(Math.min(point.y, endY - 12).toFixed(1)),
+              center_y: Number(((Math.min(point.y, endY - 12) + endY) / 2).toFixed(1)),
             };
           }
+          const halfWidth = Math.max(4, Math.abs(point.x - dragState.hazard.center_x));
+          const halfDepth = Math.max(4, Math.abs(point.y - dragState.hazard.center_y));
           return {
             ...hazard,
-            width: Number(Math.max(8, Math.abs(point.x - hazard.center_x) * 2).toFixed(1)),
-            depth: Number(Math.max(8, Math.abs(point.y - hazard.center_y) * 2).toFixed(1)),
+            width: Number((halfWidth * 2).toFixed(1)),
+            depth: Number((halfDepth * 2).toFixed(1)),
           };
         }),
       });
@@ -454,10 +475,6 @@ export function InteractiveHoleMap({
                 setSelectedEntity({ kind: "green" });
                 onSelectHazard(null);
               }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                startDrag(event.pointerId, { kind: "move-green" });
-              }}
             />
             <path d={greenInnerPath} className="hole-map__green-inner" />
             {greenSelected ? (
@@ -479,10 +496,6 @@ export function InteractiveHoleMap({
                 setSelectedEntity({ kind: "tee" });
                 onSelectHazard(null);
               }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                startDrag(event.pointerId, { kind: "move-tee" });
-              }}
             />
 
             {normalizedHole.hazards.map((hazard, index) => {
@@ -494,7 +507,6 @@ export function InteractiveHoleMap({
               };
               const commonPointerDown = (event: PointerEvent<SVGElement>) => {
                 event.stopPropagation();
-                startDrag(event.pointerId, { kind: "move-hazard", index, origin: holePointFromEvent(event), hazard });
               };
               if (organicPath) {
                 return (
@@ -550,10 +562,6 @@ export function InteractiveHoleMap({
                 setSelectedEntity({ kind: "pin" });
                 onSelectHazard(null);
               }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                startDrag(event.pointerId, { kind: "move-pin" });
-              }}
             />
             {pinSelected ? (
               <circle
@@ -572,7 +580,12 @@ export function InteractiveHoleMap({
                 className="hole-map__move-handle"
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "move-green" });
+                  startDrag(event.pointerId, {
+                    kind: "move-green",
+                    start: normalizedHole.green_center,
+                    greenCenter: normalizedHole.green_center,
+                    pin,
+                  });
                 }}
               />
             ) : null}
@@ -584,7 +597,7 @@ export function InteractiveHoleMap({
                 className="hole-map__move-handle"
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "move-fairway", origin: midPoint, path: fairwayPath });
+                  startDrag(event.pointerId, { kind: "move-fairway", start: midPoint, path: fairwayPath });
                 }}
               />
             ) : null}
@@ -596,7 +609,7 @@ export function InteractiveHoleMap({
                 className="hole-map__move-handle"
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "move-fairway", origin: midPoint, path: fairwayPath });
+                  startDrag(event.pointerId, { kind: "move-fairway", start: midPoint, path: fairwayPath });
                 }}
               />
             ) : null}
@@ -608,7 +621,7 @@ export function InteractiveHoleMap({
                 className="hole-map__move-handle"
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "move-tee" });
+                  startDrag(event.pointerId, { kind: "move-tee", start: normalizedHole.tee, tee: normalizedHole.tee });
                 }}
               />
             ) : null}
@@ -620,7 +633,7 @@ export function InteractiveHoleMap({
                 className="hole-map__move-handle"
                 onPointerDown={(event) => {
                   event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "move-pin" });
+                  startDrag(event.pointerId, { kind: "move-pin", center: normalizedHole.green_center });
                 }}
               />
             ) : null}
@@ -667,7 +680,7 @@ export function InteractiveHoleMap({
                     startDrag(event.pointerId, {
                       kind: "move-hazard",
                       index: selectedHazardIndexValue ?? 0,
-                      origin: selectedHazardCenter,
+                      start: selectedHazardCenter,
                       hazard: selectedHazard,
                     });
                   }}
