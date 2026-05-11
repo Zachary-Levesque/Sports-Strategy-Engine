@@ -57,29 +57,6 @@ function clampPinToGreen(point: AimPoint, greenCenter: AimPoint, greenRadius: nu
   });
 }
 
-function fairwayCenterAtY(path: AimPoint[], y: number): number {
-  const sortedPath = [...path].sort((left, right) => left.y - right.y);
-  if (sortedPath.length === 0) {
-    return 0;
-  }
-  if (y <= sortedPath[0].y) {
-    return sortedPath[0].x;
-  }
-  if (y >= sortedPath[sortedPath.length - 1].y) {
-    return sortedPath[sortedPath.length - 1].x;
-  }
-  for (let index = 0; index < sortedPath.length - 1; index += 1) {
-    const current = sortedPath[index];
-    const next = sortedPath[index + 1];
-    if (y >= current.y && y <= next.y) {
-      const span = next.y - current.y || 1;
-      const ratio = (y - current.y) / span;
-      return Number((current.x + (next.x - current.x) * ratio).toFixed(1));
-    }
-  }
-  return sortedPath[Math.floor(sortedPath.length / 2)]?.x ?? 0;
-}
-
 function hazardCenter(hazard: HazardData): AimPoint {
   if (hazard.shape === "corridor" && hazard.start_y != null && hazard.end_y != null) {
     return {
