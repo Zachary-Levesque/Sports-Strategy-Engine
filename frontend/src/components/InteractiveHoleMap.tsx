@@ -383,6 +383,10 @@ export function InteractiveHoleMap({
       : null;
   const selectedHazardCenter = selectedHazard ? hazardCenter(selectedHazard) : null;
   const selectedHazardIndexValue = selectedEntity?.kind === "hazard" ? selectedEntity.index : null;
+  const hazardLeftHandle = selectedHazard ? rectHandlePoint(selectedHazard, "left") : null;
+  const hazardRightHandle = selectedHazard ? rectHandlePoint(selectedHazard, "right") : null;
+  const hazardTopHandle = selectedHazard ? rectHandlePoint(selectedHazard, "top") : null;
+  const hazardBottomHandle = selectedHazard ? rectHandlePoint(selectedHazard, "bottom") : null;
 
   return (
     <section className="card map-card">
@@ -449,10 +453,6 @@ export function InteractiveHoleMap({
                 d={fairwayLine}
                 className="hole-map__selection-outline"
                 strokeWidth={normalizedHole.fairway_width}
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "resize-fairway-width" });
-                }}
               />
             ) : null}
             {roughSelected ? (
@@ -460,10 +460,6 @@ export function InteractiveHoleMap({
                 d={fairwayLine}
                 className="hole-map__selection-outline"
                 strokeWidth={normalizedHole.fairway_width + normalizedHole.rough_width * 2}
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "resize-rough-width" });
-                }}
               />
             ) : null}
 
@@ -481,10 +477,6 @@ export function InteractiveHoleMap({
               <path
                 d={greenPath}
                 className="hole-map__selection-outline"
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  startDrag(event.pointerId, { kind: "resize-green" });
-                }}
               />
             ) : null}
 
@@ -589,6 +581,18 @@ export function InteractiveHoleMap({
                 }}
               />
             ) : null}
+            {greenSelected ? (
+              <circle
+                cx={projection.toSvgX(normalizedHole.green_center.x + normalizedHole.green_radius)}
+                cy={projection.toSvgY(normalizedHole.green_center.y)}
+                r="7"
+                className="hole-map__resize-handle"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  startDrag(event.pointerId, { kind: "resize-green", center: normalizedHole.green_center });
+                }}
+              />
+            ) : null}
             {fairwaySelected ? (
               <circle
                 cx={projection.toSvgX(midPoint.x)}
@@ -601,6 +605,38 @@ export function InteractiveHoleMap({
                 }}
               />
             ) : null}
+            {fairwaySelected ? (
+              <>
+                <circle
+                  cx={projection.toSvgX(midPoint.x - normalizedHole.fairway_width / 2)}
+                  cy={projection.toSvgY(midPoint.y)}
+                  r="7"
+                  className="hole-map__resize-handle"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startDrag(event.pointerId, {
+                      kind: "resize-fairway-width",
+                      centerX: midPoint.x,
+                      width: normalizedHole.fairway_width,
+                    });
+                  }}
+                />
+                <circle
+                  cx={projection.toSvgX(midPoint.x + normalizedHole.fairway_width / 2)}
+                  cy={projection.toSvgY(midPoint.y)}
+                  r="7"
+                  className="hole-map__resize-handle"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startDrag(event.pointerId, {
+                      kind: "resize-fairway-width",
+                      centerX: midPoint.x,
+                      width: normalizedHole.fairway_width,
+                    });
+                  }}
+                />
+              </>
+            ) : null}
             {roughSelected ? (
               <circle
                 cx={projection.toSvgX(midPoint.x)}
@@ -612,6 +648,40 @@ export function InteractiveHoleMap({
                   startDrag(event.pointerId, { kind: "move-fairway", start: midPoint, path: fairwayPath });
                 }}
               />
+            ) : null}
+            {roughSelected ? (
+              <>
+                <circle
+                  cx={projection.toSvgX(midPoint.x - (normalizedHole.fairway_width / 2 + normalizedHole.rough_width))}
+                  cy={projection.toSvgY(midPoint.y)}
+                  r="7"
+                  className="hole-map__resize-handle"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startDrag(event.pointerId, {
+                      kind: "resize-rough-width",
+                      centerX: midPoint.x,
+                      fairwayWidth: normalizedHole.fairway_width,
+                      roughWidth: normalizedHole.rough_width,
+                    });
+                  }}
+                />
+                <circle
+                  cx={projection.toSvgX(midPoint.x + normalizedHole.fairway_width / 2 + normalizedHole.rough_width)}
+                  cy={projection.toSvgY(midPoint.y)}
+                  r="7"
+                  className="hole-map__resize-handle"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startDrag(event.pointerId, {
+                      kind: "resize-rough-width",
+                      centerX: midPoint.x,
+                      fairwayWidth: normalizedHole.fairway_width,
+                      roughWidth: normalizedHole.rough_width,
+                    });
+                  }}
+                />
+              </>
             ) : null}
             {teeSelected ? (
               <circle
@@ -643,14 +713,6 @@ export function InteractiveHoleMap({
                   <path
                     d={hazardPath(selectedHazard, projection, 97)!}
                     className="hole-map__selection-outline"
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      startDrag(event.pointerId, {
-                        kind: "resize-hazard",
-                        index: selectedHazardIndexValue ?? 0,
-                        hazard: selectedHazard,
-                      });
-                    }}
                   />
                 ) : null}
                 {selectedHazard.shape === "corridor" && selectedHazard.width && selectedHazard.start_y != null && selectedHazard.end_y != null ? (
@@ -660,14 +722,6 @@ export function InteractiveHoleMap({
                     width={selectedHazard.width}
                     height={selectedHazard.end_y - selectedHazard.start_y}
                     className="hole-map__selection-outline-rect"
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      startDrag(event.pointerId, {
-                        kind: "resize-hazard",
-                        index: selectedHazardIndexValue ?? 0,
-                        hazard: selectedHazard,
-                      });
-                    }}
                   />
                 ) : null}
                 <circle
@@ -685,6 +739,74 @@ export function InteractiveHoleMap({
                     });
                   }}
                 />
+                {hazardLeftHandle ? (
+                  <circle
+                    cx={projection.toSvgX(hazardLeftHandle.x)}
+                    cy={projection.toSvgY(hazardLeftHandle.y)}
+                    r="7"
+                    className="hole-map__resize-handle"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      startDrag(event.pointerId, {
+                        kind: "resize-hazard",
+                        index: selectedHazardIndexValue ?? 0,
+                        hazard: selectedHazard,
+                        handle: selectedHazard.shape === "circle" ? "radius" : "left",
+                      });
+                    }}
+                  />
+                ) : null}
+                {selectedHazard.shape !== "circle" && hazardRightHandle ? (
+                  <circle
+                    cx={projection.toSvgX(hazardRightHandle.x)}
+                    cy={projection.toSvgY(hazardRightHandle.y)}
+                    r="7"
+                    className="hole-map__resize-handle"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      startDrag(event.pointerId, {
+                        kind: "resize-hazard",
+                        index: selectedHazardIndexValue ?? 0,
+                        hazard: selectedHazard,
+                        handle: "right",
+                      });
+                    }}
+                  />
+                ) : null}
+                {selectedHazard.shape !== "circle" && hazardTopHandle ? (
+                  <circle
+                    cx={projection.toSvgX(hazardTopHandle.x)}
+                    cy={projection.toSvgY(hazardTopHandle.y)}
+                    r="7"
+                    className="hole-map__resize-handle"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      startDrag(event.pointerId, {
+                        kind: "resize-hazard",
+                        index: selectedHazardIndexValue ?? 0,
+                        hazard: selectedHazard,
+                        handle: "top",
+                      });
+                    }}
+                  />
+                ) : null}
+                {selectedHazard.shape !== "circle" && hazardBottomHandle ? (
+                  <circle
+                    cx={projection.toSvgX(hazardBottomHandle.x)}
+                    cy={projection.toSvgY(hazardBottomHandle.y)}
+                    r="7"
+                    className="hole-map__resize-handle"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      startDrag(event.pointerId, {
+                        kind: "resize-hazard",
+                        index: selectedHazardIndexValue ?? 0,
+                        hazard: selectedHazard,
+                        handle: "bottom",
+                      });
+                    }}
+                  />
+                ) : null}
               </>
             ) : null}
           </g>
