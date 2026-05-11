@@ -215,22 +215,6 @@ Sports-Strategy-Engine/
 └── README.md
 ```
 
-## Screenshots
-
-Add screenshots here before public release:
-
-- `docs/screenshots/strategy-dashboard.png`
-- `docs/screenshots/hole-editor-selected-object.png`
-- `docs/screenshots/recommendation-results.png`
-
-Suggested markdown once screenshots exist:
-
-```md
-![Strategy Dashboard](docs/screenshots/strategy-dashboard.png)
-![Hole Editor](docs/screenshots/hole-editor-selected-object.png)
-![Recommendation Results](docs/screenshots/recommendation-results.png)
-```
-
 ## Roadmap
 
 - Add browser-based integration tests for the hole editor
