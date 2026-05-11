@@ -385,7 +385,11 @@ function App() {
       }
       setHoleForm(payload);
       setHoleUndoStack([]);
-      setSelectedHoleDetail(payload as HoleDetail);
+      setSelectedHoleDetail((current) =>
+        current && current.hole_id === payload.hole_id
+          ? ({ ...current, ...payload } as HoleDetail)
+          : current,
+      );
       await loadInitialData();
       setEditingHoleId(payload.hole_id);
       setSelectedHole(payload.hole_id);
