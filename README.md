@@ -1,34 +1,77 @@
 # Sports Strategy Engine
 
-Sports Strategy Engine is a local full-stack golf strategy optimizer. It combines a Python Monte Carlo simulation engine, a FastAPI backend with SQLite persistence, and a React/TypeScript frontend that consumes the live API.
+Sports Strategy Engine is a full-stack golf strategy application that combines a Monte Carlo shot simulation engine, a FastAPI backend, SQLite persistence, and a React/TypeScript frontend with a visual hole editor.
 
-## Overview
+It is designed to help players and coaches model golf decision-making, compare shot options under uncertainty, and build custom holes that can be analyzed interactively.
 
-The application now supports:
+## Why This Project Is Useful
 
-- seeded player, hole, and scenario data
-- player CRUD with club distance and dispersion editing
-- visual hole generation from par and yardage, then hole CRUD through an interactive SVG course editor
-- tee-shot and map-driven custom-shot recommendation generation through Monte Carlo simulation
-- live SVG hole previews in the hole editor and strategy view with draggable course features
-- shot landing cloud visualization on recommendation results
-- persisted recommendation history
-- a React dashboard for running and reviewing strategy workflows
+Most golf tools focus on static distances or simple score tracking. This project is different:
+
+- it models shot outcomes probabilistically instead of assuming perfect execution
+- it compares strategic options using expected strokes, variance, and penalty exposure
+- it allows users to create and edit holes visually rather than relying on fixed templates
+- it keeps strategy history so results can be reviewed after each simulation
+
+The result is a practical sandbox for course strategy analysis, simulation-based coaching, and product experimentation around golf intelligence workflows.
+
+## Main Features
+
+- Player profile management with editable club distances, dispersion, confidence, and risk tolerance
+- Hole creation and editing with a visual SVG-based course editor
+- Terrain and hazard editing for bunkers, water, rough, fairway, tee, pin, and OB corridors
+- Tee-shot and custom-shot recommendation workflows
+- Monte Carlo simulation engine with risk-adjusted ranking
+- Recommendation history stored in SQLite
+- Interactive shot-map visualization with aim lines and landing clouds
+- Local-first developer workflow with automated tests and frontend build validation
+
+## Technologies Used
+
+- Frontend: React 18, TypeScript, Vite
+- Backend: FastAPI, Pydantic, SQLAlchemy
+- Database: SQLite
+- Simulation: Python, NumPy
+- Testing: Pytest
+- Tooling: Makefile, shell scripts, npm
 
 ## Architecture
 
-- `backend/app/simulation`
-  The shared golf simulation engine and decision logic.
-- `backend/app`
-  FastAPI app, schemas, services, SQLite models, startup seeding, and logging.
 - `frontend/src`
-  React + TypeScript UI for strategy, player editing, hole editing, and history.
-- `python/`
-  Compatibility CLI entrypoint for the original prototype.
+  React UI, editor interactions, hole map rendering, and API client logic
+- `backend/app/api`
+  FastAPI routes for players, holes, recommendations, scenarios, and health
+- `backend/app/services`
+  Application service layer for persistence, mapping, and orchestration
+- `backend/app/simulation`
+  Monte Carlo simulation engine, player model, risk scoring, and decision ranking
+- `data`
+  Seed data for players, holes, and scenarios
+- `tests` and `backend/tests`
+  Frontend-adjacent and backend simulation/API validation
 
-See [docs/architecture.md](/Users/zacharylevesque/Documents/GitHub/Sports-Strategy-Engine/docs/architecture.md), [docs/api.md](/Users/zacharylevesque/Documents/GitHub/Sports-Strategy-Engine/docs/api.md), and [docs/user_flows.md](/Users/zacharylevesque/Documents/GitHub/Sports-Strategy-Engine/docs/user_flows.md).
+## How The Editor Works
 
-## Install
+The hole editor uses an SVG course surface backed by a normalized hole model.
+
+- Clicking an editable object selects it
+- A selected object receives a visible red outline
+- A center handle appears for repositioning
+- Resize handles appear on the selected outline so scale changes are explicit
+- Undo history is captured for destructive or structural edits
+- Hazard geometry is normalized so kind and shape transitions stay valid
+
+The editor is built to keep object movement stable during drag operations by freezing the projection used for coordinate conversion during active edits.
+
+## Installation
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+
+- npm
+
+### Setup
 
 ```bash
 python3 -m venv .venv
@@ -40,233 +83,141 @@ npm install
 cd ..
 ```
 
-## Backend Setup
+## Run The Project Locally
 
-Run the backend from the project root:
+Start the backend from the repository root:
 
 ```bash
+source .venv/bin/activate
 ./scripts/run_backend.sh
 ```
 
-Equivalent command:
-
-```bash
-uvicorn backend.app.main:app --reload
-```
-
-Backend URL: `http://localhost:8000`
-
-## Frontend Setup
-
-Run the frontend from the project root:
+Start the frontend in a second terminal:
 
 ```bash
 ./scripts/run_frontend.sh
 ```
 
-Equivalent commands:
+Open:
 
-```bash
-cd frontend
-npm run dev
-```
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8000`
 
-Frontend URL: `http://localhost:5173`
+## Usage
 
-## Run Full Stack Locally
+### Strategy Workflow
 
-1. Start the backend: `./scripts/run_backend.sh`
-2. Start the frontend: `./scripts/run_frontend.sh`
-3. Open `http://localhost:5173`
-4. Use the `Strategy`, `Players`, `Holes`, and `History` tabs
+1. Open the `Strategy` tab.
+2. Select a player and hole.
+3. Choose `Tee shot` or `Approach / custom shot`.
+4. Adjust wind, risk tolerance, and iterations.
+5. Run the recommendation engine.
+6. Review:
+   - best strategy
+   - top alternatives
+   - probability breakdown
+   - explanation
+   - shot cloud visualization
 
-## Visual Hole Designer
+### Player Workflow
 
-In the `Holes` tab you can now:
+1. Open `Players`.
+2. Create or edit a player profile.
+3. Update club carry, total distance, dispersion, and confidence.
+4. Save the profile and use it immediately in the strategy workflow.
 
-- generate a default hole from `par` and `yardage`
-- drag the green center and resize the green
-- drag the pin position
-- bend the fairway path with draggable control points
-- resize fairway and rough widths with map handles
-- add `bunker`, `water`, `OB`, and `recovery` hazards from the toolbar
-- drag, resize, relabel, and delete hazards visually
+### Hole Workflow
 
-The saved hole still uses the same `POST /holes` and `PUT /holes/{hole_id}` API flow, with backward-compatible optional geometry fields for `pin_position` and `fairway_path`.
+1. Open `Holes`.
+2. Generate a base layout from par, yardage, and shape.
+3. Select a terrain element or hazard to edit it.
+4. Use the center handle to move the object.
+5. Use resize handles to change width, radius, depth, or corridor span.
+6. Save the hole and reuse it in strategy simulations.
 
-## UI Glossary
+## Controls And Editing System
 
-- `Distance dispersion`
-  How much your shot distance usually varies. Higher number means less consistent distance control.
-- `Left/right dispersion`
-  How much your shot misses left or right. Higher number means a wider shot pattern.
+### Selection
 
-## Shot Modes
+- Click an object to select it
+- Selected objects show a red outline
 
-- `Tee shot`
-  Starts every simulation from the hole tee and is the default mode.
-- `Approach / custom shot`
-  Lets you click a live ball position on the hole map, set a lie, and adjust the target if needed so the engine can analyze a non-tee shot from the current location.
+### Movement
 
-## Database Setup
+- Drag the center handle of the selected object to move it
 
-- SQLite file: `data/sports_strategy_engine.db`
-- Startup behavior: the backend creates tables automatically and seeds players, holes, and scenarios if the database is empty
+### Resizing
 
-Reset the local database:
+- Drag visible resize handles on the selected outline
+- Fairway and rough expose width handles
+- Hazards expose geometry-appropriate handles based on shape
 
-```bash
-./scripts/reset_db.sh
-```
+### Undo
 
-Or:
-
-```bash
-make reset-db
-```
-
-## API Endpoint Summary
-
-- `GET /health`
-- `GET /players`
-- `GET /players/{player_name}`
-- `POST /players`
-- `PUT /players/{player_name}`
-- `DELETE /players/{player_name}`
-- `GET /holes`
-- `GET /holes/{hole_id}`
-- `POST /holes`
-- `PUT /holes/{hole_id}`
-- `DELETE /holes/{hole_id}`
-- `GET /scenarios`
-- `POST /recommendation`
-- `POST /simulate`
-- `GET /recommendations/history`
-
-## Example Recommendation Request
-
-```bash
-curl -X POST http://127.0.0.1:8000/recommendation \
-  -H "Content-Type: application/json" \
-  -d '{
-    "player_name": "Zachary",
-    "hole_id": "harbor_par4",
-    "iterations": 2000,
-    "shot_mode": "custom",
-    "ball_position": { "x": 4, "y": 155 },
-    "lie": "fairway",
-    "target_position": { "x": 0, "y": 355 },
-    "risk_tolerance_override": "medium",
-    "wind_override": { "speed_mph": 14, "direction_deg": 110 }
-  }'
-```
-
-## Example Recommendation Response
-
-```json
-{
-  "recommendation_id": 21,
-  "player_name": "Zachary",
-  "hole_id": "harbor_par4",
-  "shot_mode": "custom",
-  "start_position": {"x": 4.0, "y": 155.0},
-  "target_position": {"x": 0.0, "y": 355.0},
-  "lie": "fairway",
-  "best_strategy": {
-    "club": "4-Iron",
-    "aim_label": "left fairway",
-    "aim_point": {"x": -7.5, "y": 212.0},
-    "shot_shape": "draw",
-    "swing_intensity": 1.0,
-    "expected_strokes": 5.21,
-    "risk_adjusted_score": 5.24,
-    "penalty_probability": 0.011,
-    "fairway_probability": 0.634,
-    "rough_probability": 0.311,
-    "green_probability": 0.0,
-    "bunker_probability": 0.002,
-    "water_probability": 0.008,
-    "ob_probability": 0.003,
-    "variance": 0.072
-  },
-  "probabilities": {
-    "penalty_probability": 0.011,
-    "fairway_probability": 0.634,
-    "rough_probability": 0.311,
-    "green_probability": 0.0,
-    "bunker_probability": 0.002,
-    "water_probability": 0.008,
-    "ob_probability": 0.003,
-    "recovery_probability": 0.042
-  },
-  "expected_strokes": 5.21,
-  "risk_adjusted_score": 5.24,
-  "variance": 0.072,
-  "shot_cloud_summary": {
-    "sample_count": 350,
-    "centroid": {"x": -2.6, "y": 213.4},
-    "x_range": [-40.3, 29.1],
-    "y_range": [184.7, 242.5]
-  },
-  "shot_samples": [
-    {"x": -4.0, "y": 212.8, "surface": "fairway", "total_strokes": 5.1}
-  ],
-  "explanation": "4-Iron to left fairway is best because it produced the lowest risk-adjusted score."
-}
-```
-
-## Manual UI Check
-
-1. Start the backend with `./scripts/run_backend.sh`.
-2. Start the frontend with `./scripts/run_frontend.sh`.
-3. Open `http://localhost:5173`.
-4. In `Players`, edit a club row and verify you can type, delete, paste, and tab through fields normally before saving.
-5. In `Holes`, generate a new hole from par and yardage, then drag the green, pin, fairway handles, and hazards to confirm the live map updates immediately.
-6. Add a bunker or water hazard from the toolbar, resize it, and save the hole.
-7. In `Strategy`, run a tee-shot recommendation and confirm the hole map renders the recommended aim line and landing cloud.
-8. Switch to `Approach / custom shot`, click a ball position directly on the map, rerun, and confirm the map updates from the new start point.
-9. Change wind speed or direction in `Strategy`, rerun, and confirm the engine still returns a saved recommendation.
-10. Open `History`, refresh the page, and verify the saved recommendation remains present.
+- Use `Cancel last change` in the editor toolbar to revert the last structural edit
 
 ## Testing
 
-Backend tests:
-
-```bash
-pytest
-```
-
-Frontend build validation:
-
-```bash
-cd frontend
-npm run build
-```
-
-Combined helper:
+Run the full automated checks:
 
 ```bash
 ./scripts/run_tests.sh
 ```
 
-The CLI prototype still works:
+Or run them individually:
 
 ```bash
-python python/prototype.py
+./.venv/bin/pytest
+cd frontend && npm run build
 ```
 
-## Troubleshooting
+## Project Structure
 
-- If the frontend shows `Backend unreachable`, confirm the backend is running at `http://localhost:8000`.
-- If port `8000` is already in use, stop the existing process and restart the backend.
-- If the UI data looks stale, refresh history or reset the database with `./scripts/reset_db.sh`.
-- If you change backend schemas or frontend types, rerun `pytest` and `npm run build`.
+```text
+Sports-Strategy-Engine/
+├── backend/
+├── frontend/
+├── data/
+├── docs/
+├── python/
+├── scripts/
+├── tests/
+├── Makefile
+└── README.md
+```
 
-## Final Step After This
+## Screenshots
 
-The remaining final step is deployment packaging and hosting:
+Add screenshots here before public release:
 
-- production environment configuration
-- build/release workflow
-- production process management
-- hosting for backend and frontend
+- `docs/screenshots/strategy-dashboard.png`
+- `docs/screenshots/hole-editor-selected-object.png`
+- `docs/screenshots/recommendation-results.png`
+
+Suggested markdown once screenshots exist:
+
+```md
+![Strategy Dashboard](docs/screenshots/strategy-dashboard.png)
+![Hole Editor](docs/screenshots/hole-editor-selected-object.png)
+![Recommendation Results](docs/screenshots/recommendation-results.png)
+```
+
+## Roadmap
+
+- Add browser-based integration tests for the hole editor
+- Add export/import for custom holes and player profiles
+- Add multi-shot hole strategy planning instead of single-shot ranking only
+- Add richer hazard templates and terrain sculpting tools
+- Add deployment configuration for hosted demo environments
+- Add analytics and comparative strategy reporting
+
+## Documentation
+
+- [Architecture Notes](docs/architecture.md)
+- [API Reference](docs/api.md)
+- [Math Model](docs/math_model.md)
+- [User Flows](docs/user_flows.md)
+
+## License
+
+Add a project license before public release.
